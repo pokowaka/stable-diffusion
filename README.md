@@ -1,6 +1,7 @@
-# Update: v0.9 neon optimization edition
+# Update: v0.9.1 neon insane optimization edition
 
-[Added support for inpainting](#inpainting)
+Now can generate 768x2048 and 1216x1216 on 8 gb vram <br>
+tested on rtx 3070
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">
@@ -28,6 +29,14 @@ placing the weights at the specified location). <br>
 So run: <br>
 `conda env create -f environment.yaml` <br>
 `conda activate ldm`
+
+<h2 align="center">Additional steps for AMD Cards</h2>
+
+After activating your conda environment, you have to update torch and torchvision wheels which were built with ROCm support:
+
+`pip3 install --upgrade torch torchvision --extra-index-url https://download.pytorch.org/whl/rocm5.1.1`
+
+<h2 align="center">Docker</h2>
 
 Alternatively, if you prefer to use Docker, you can do the following:
 

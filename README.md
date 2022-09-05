@@ -1,6 +1,10 @@
-# Update: v0.9.1 neon insane optimization edition
+# Update: v1.0.0 neon GUI edition (for now Windows only)
 
-Now can generate 768x2048 and 1216x1216 on 8 gb vram <br>
+## THE GUI IS OUT <br>
+See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
+
+<br>
+This repo can generate 768x2048 and 1216x1216 on 8 gb vram <br>
 tested on rtx 3070
 
 <h1 align="center">Optimized Stable Diffusion</h1>

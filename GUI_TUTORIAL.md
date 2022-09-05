@@ -12,6 +12,10 @@ If you downloaded the 4 gb archive, put the model.ckpt file to StableDiffusionGu
 
 <img src="assets/tutorial_imgs/step 1.jpg"/>
 
+
+also install git if not installed
+https://git-scm.com/downloads
+
 ### Step 2. 
 Your folder contents should look like this
 <img src="assets/tutorial_imgs/step 2.jpg"/>

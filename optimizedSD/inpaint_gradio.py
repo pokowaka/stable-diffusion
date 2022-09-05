@@ -319,4 +319,4 @@ if __name__ == '__main__':
         ],
         outputs=["image", "image", "text"],
     )
-    demo.launch()
+    demo.launch(share=True)

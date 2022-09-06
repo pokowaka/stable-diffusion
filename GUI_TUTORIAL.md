@@ -9,17 +9,25 @@ If you already have a model.ckpt file,
 Extract the downloaded archive.
 
 If you downloaded the 4 gb archive, put the model.ckpt file to StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1
-![Screenshot](assets/tutorial_imgs/step 1.jpg)
+
+<img src="assets/tutorial_imgs/step 1.jpg"/>
+
+
+also install git if not installed
+https://git-scm.com/downloads
+
 ### Step 2. 
 Your folder contents should look like this
-![Screenshot](assets/tutorial_imgs/step 2.jpg)
+<img src="assets/tutorial_imgs/step 2.jpg"/>
+
 ### Step 3. 
 run the 
 ```
 1) install.bat
 ```
 file. It should produce the output as in the screenshot.
-![Screenshot](assets/tutorial_imgs/step 3.jpg)
+<img src="assets/tutorial_imgs/step 3.jpg"/>
+
 ### Step 4.1
 Each file explained:
 
@@ -31,20 +39,24 @@ Each file explained:
 
 <br> Choose only one of these three if you are limited by resources or want to generate bigger-resolution images. Otherwise, go to step 4.2.
 
-![Screenshot](assets/tutorial_imgs/step 4.1.jpg)
+<img src="assets/tutorial_imgs/step 4.1.jpg"/>
+
 ### Step 4.2
 Obviously the same as 4.1 but better speed, though more resource consumption.
-![Screenshot](assets/tutorial_imgs/step 4.2.jpg)
+<img src="assets/tutorial_imgs/step 4.2.jpg"/>
+
 ### Step 4.3
 If you encounter this error, just press 'OK', it doesn't mean anything.<br>
-![Screenshot](assets/tutorial_imgs/step 5.jpg)
+<img src="assets/tutorial_imgs/step 5.jpg"/>
+
 ### Step 5
 After clicking one of the 6 .bat files, you should see output like this.
 <br>
 Choose the red link in 99% cases.
 Choose the blue one if you have troubles with the red one. They  lead to the same page.
 Copy your link of choice and paste it into your web-browser. (Chrome Firefox whatever)
-![Screenshot](assets/tutorial_imgs/step 6.png)
+<img src="assets/tutorial_imgs/step 6.png"/>
+
 ### Step +. Gradio interface explained.
 Once you open the page, you should see interface like this. It may vary because each mode has it's interface. 
 
@@ -56,4 +68,4 @@ Though I think it's intuitive, I will explain some of the params:
 - sampler: different sampler may produce a bit different results.
 <br>
 Other params are better to be left as-is.
-![Screenshot](assets/tutorial_imgs/step 7.jpg)
+<img src="assets/tutorial_imgs/step 7.jpg"/>

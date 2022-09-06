@@ -40,6 +40,7 @@ def load_model_from_config(ckpt, verbose=False):
     sd = pl_sd["state_dict"]
     return sd
 
+
 def generate(
         prompt,
         ddim_steps,
@@ -73,7 +74,7 @@ def generate(
     # Logging
     logger(locals(), "logs/txt2img_gradio_logs.csv")
 
-    if device != "cpu" and full_precision == False:
+    if device != "cpu" and not full_precision:
         model.half()
         modelFS.half()
         modelCS.half()
@@ -89,7 +90,7 @@ def generate(
     assert prompt is not None
     data = [batch_size * [prompt]]
 
-    if full_precision == False and device != "cpu":
+    if device != "cpu" and not full_precision:
         precision_scope = autocast
     else:
         precision_scope = nullcontext
@@ -239,7 +240,7 @@ if __name__ == '__main__':
             gr.Slider(0, 50, value=7.5, step=0.1),
             gr.Slider(0, 1, step=0.01),
             gr.Slider(1, 2, value=1, step=1),
-            gr.Text(value="cuda"),
+            gr.Radio(["cuda", "cpu"], value="cuda"),
             "text",
             gr.Text(value=args.outputs_path),
             gr.Radio(["png", "jpg"], value='png'),

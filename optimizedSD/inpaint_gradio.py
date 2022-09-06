@@ -118,7 +118,7 @@ def generate(
     model.cdevice = device
     modelCS.cond_stage_model.device = device
 
-    if device != "cpu" and full_precision == False:
+    if device != "cpu" and not full_precision:
         model.half()
         modelCS.half()
         modelFS.half()

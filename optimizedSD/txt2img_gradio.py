@@ -243,7 +243,7 @@ if __name__ == '__main__':
             "text",
             gr.Text(value=args.outputs_path),
             gr.Radio(["png", "jpg"], value='png'),
-            "checkbox",
+            gr.Checkbox(value=True),
             "checkbox",
             gr.Radio(["ddim", "plms"], value="plms"),
         ],

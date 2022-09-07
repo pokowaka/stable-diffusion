@@ -192,8 +192,8 @@ class CrossAttention(nn.Module):
             sim.masked_fill_(~mask, max_neg_value)
             del mask
 
-        sim[4:] = sim[4:].softmax(dim=-1)
-        sim[:4] = sim[:4].softmax(dim=-1)
+        sim[sim.shape[0] // 2:] = sim[sim.shape[0] // 2:].softmax(dim=-1)
+        sim[:sim.shape[0] // 2] = sim[:sim.shape[0] // 2].softmax(dim=-1)
 
         sim = einsum('b i j, b j d -> b i d', sim, v)
         sim = rearrange(sim, '(b h) n d -> b n (h d)', h=h)
@@ -214,15 +214,14 @@ class CrossAttention(nn.Module):
 
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2])
         for i in range(0, q.shape[0], 2):
-            q, k = q.to(device), k.to(device)
+            q, k, v = q.to(device), k.to(device), v.cpu()
             s1 = einsum('b i d, b j d -> b i j', q[i:i + 2], k[i:i + 2])
-            q, k = q.cpu(), k.cpu()
+            q, k, v = q.cpu(), k.cpu(), v.to(device)
             s1 *= self.scale
 
-            s1[1:] = s1[1:].softmax(dim=-1)
-            s1[:1] = s1[:1].softmax(dim=-1)
+            s1 = torch.stack([F.softmax(x, dim=-1).cpu() for x in s1])
 
-            r1[i:i + 2] = einsum('b i j, b j d -> b i d', s1, v[i:i + 2]).cpu()
+            r1[i:i + 2] = einsum('b i j, b j d -> b i d', s1.to(device), v[i:i + 2]).cpu()
         del s1
         r2 = rearrange(r1.to(device), '(b h) n d -> b n (h d)', h=h).to(device)
         del r1, q, k, v
@@ -243,7 +242,6 @@ class BasicTransformerBlock(nn.Module):
         self.norm2 = nn.LayerNorm(dim)
         self.norm3 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
-        self.superfastmode = superfastmode
 
     def forward(self, x, context=None):
         return checkpoint(self._forward, (x, context), self.parameters(), self.checkpoint)

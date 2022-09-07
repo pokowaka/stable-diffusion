@@ -3,6 +3,8 @@
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
+## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
+
 <br>
 This repo can generate 768x2048 and 1216x1216 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
 

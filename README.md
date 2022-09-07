@@ -3,10 +3,14 @@
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
+## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
+
 <br>
 This repo can generate 768x2048 and 1216x1216 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
 
 ### How to enable it?
+The superfast mode is enabled by default, however if you encounter OOM errors, disable it:
+
 Example python command with txt2img:
 ```
 python optimizedSD/optimized_txt2img.py --prompt "an apple" --config_path optimizedSD/v1-inference_lowvram.yaml --H 512 --W 512 --seed 27 --n_iter 2 --n_samples 10 --ddim_steps 50

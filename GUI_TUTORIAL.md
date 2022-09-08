@@ -1,7 +1,7 @@
 # Stable Diffusion GUI tutorial (for now Windows only)
 ### Step 0. Download the packed GUI
 If you want to go the simple way, 
-[download this](https://mega.nz/file/TEw3HCxA#SbDyov9ZXIGH8FEJ1OeXyOU7D_G4ykqg8WkZdvIr1nM) (8 gb).<br>
+[download this]([https://mega.nz/file/TEw3HCxA#SbDyov9ZXIGH8FEJ1OeXyOU7D_G4ykqg8WkZdvIr1nM](https://e1.pcloud.link/publink/show?code=XZyAC4ZjdVrWPYcvKbXQhXFiF4vfF9D0Iwk)) (8 gb).<br>
 
 If you already have a model.ckpt file,
 [download this](https://mega.nz/file/aFZTGLJA#-jpo2uuZu0KvsUeS6cpPTUcwLpolowszY3Vcch5IbUA) (4 gb).

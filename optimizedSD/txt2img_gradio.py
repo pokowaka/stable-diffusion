@@ -82,7 +82,7 @@ def generate(
     tic = time.time()
     os.makedirs(outdir, exist_ok=True)
     outpath = outdir
-    sample_path = os.path.join(outpath, "_".join(re.split(":| ", prompt)))[:150]
+    sample_path = os.path.join(outpath, "_".join(re.split(":| ", prompt.replace("/", ""))))[:150]
     os.makedirs(sample_path, exist_ok=True)
     base_count = len(os.listdir(sample_path))
 

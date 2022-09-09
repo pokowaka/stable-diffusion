@@ -115,11 +115,10 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
 
                     print(samples_ddim.shape)
                     print("saving images")
-                    return_grid = []
                     for i in range(batch_size):
                         x_samples_ddim = modelFS.decode_first_stage(samples_ddim[i].unsqueeze(0))
                         x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
-                        return_grid.append(x_sample.to("cpu"))
+                        all_samples.append(x_sample.to("cpu"))
                         seeds += str(opt.seed) + ","
                         opt.seed += 1
                         base_count += 1

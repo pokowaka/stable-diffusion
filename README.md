@@ -6,16 +6,22 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
 
 <br>
-This repo can generate 768x2048 and 1216x1216 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
+This repo can generate 1920x1088 and 1600x1600 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
 
-### How to enable it?
-The superfast mode is enabled by default, however if you encounter OOM errors, disable it:
+### How to generate so high-res images?
+The superfast mode is enabled by default, however if you encounter OOM errors or want to go higher in resolution, disable it:
 
-Example python command with txt2img:
+Example cli command with txt2img and high-res mode:
 ```
 python optimizedSD/optimized_txt2img.py --prompt "an apple" --config_path optimizedSD/v1-inference_lowvram.yaml --H 512 --W 512 --seed 27 --n_iter 2 --n_samples 10 --ddim_steps 50
 ```
+Example gradio command with txt2img and high-res mode:
+```
+python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowvram.yaml
+```
 the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the cost of the speed.
+
+On rtx 3070, generation of 1920x1088 image took 9 minutes sharp.
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">

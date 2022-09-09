@@ -126,7 +126,10 @@ class ResnetBlock(nn.Module):
                                                     padding=0)
 
     def forward(self, x, temb):
+        dev = x.device
         h = x
+        x = x.cpu()
+
         h = self.norm1(h)
         h = nonlinearity(h)
         h = self.conv1(h)
@@ -141,11 +144,13 @@ class ResnetBlock(nn.Module):
 
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
-                x = self.conv_shortcut(x)
+                x = self.conv_shortcut(x.to(dev))
             else:
-                x = self.nin_shortcut(x)
+                x = self.nin_shortcut(x.to(dev))
+        else:
+            x = x.to(dev)
 
-        return x + h
+        return x + h.half()
 
 
 class LinAttnBlock(LinearAttention):
@@ -183,11 +188,14 @@ class AttnBlock(nn.Module):
                                         padding=0)
 
     def forward(self, x):
+        dev = x.device
         h_ = x
+        x = x.cpu()
         h_ = self.norm(h_)
         q = self.q(h_)
         k = self.k(h_)
-        v = self.v(h_)
+        v = self.v(h_).cpu()
+        del h_
 
         # compute attention
         b, c, h, w = q.shape
@@ -195,18 +203,24 @@ class AttnBlock(nn.Module):
         q = q.permute(0, 2, 1)  # b,hw,c
         k = k.reshape(b, c, h * w)  # b,c,hw
         w_ = torch.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
-        w_ = w_ * (int(c) ** (-0.5))
-        w_ = torch.nn.functional.softmax(w_, dim=2)
+        del q, k
+        w_ = w_ * (int(c) ** (-0.5))  # torch.Size([1, 43264, 43264])
+        w_cpu = torch.zeros_like(w_, dtype=torch.float16, device=torch.device("cpu"))
+        w_cpu[:, w_.shape[1]//2:, w_.shape[2]//2:] = nn.functional.softmax(w_[:, w_.shape[1]//2:, w_.shape[2]//2:], dim=2).cpu()
+        w_cpu[:, :w_.shape[1]//2, :w_.shape[2]//2] = nn.functional.softmax(w_[:, :w_.shape[1]//2, :w_.shape[2]//2], dim=2).cpu()
+        del w_
+        w_ = w_cpu.to(dev).permute(0, 2, 1)
 
         # attend to values
-        v = v.reshape(b, c, h * w)
-        w_ = w_.permute(0, 2, 1)  # b,hw,hw (first hw of k, second of q)
+        v = v.to(dev)
+        v = v.reshape(b, c, h * w)  # b,hw,hw (first hw of k, second of q)
         h_ = torch.bmm(v, w_)  # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
+        del w_, v
         h_ = h_.reshape(b, c, h, w)
 
         h_ = self.proj_out(h_)
 
-        return x + h_
+        return x.to(dev) + h_
 
 
 def make_attn(in_channels, attn_type="vanilla"):
@@ -542,12 +556,14 @@ class Decoder(nn.Module):
     def forward(self, z):
         # assert z.shape[1:] == self.z_shape[1:]
         self.last_z_shape = z.shape
+        dev = z.device
 
         # timestep embedding
         temb = None
 
         # z to block_in
         h = self.conv_in(z)
+        del z
 
         # middle
         h = self.mid.block_1(h, temb)
@@ -557,7 +573,13 @@ class Decoder(nn.Module):
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
             for i_block in range(self.num_res_blocks + 1):
-                h = self.up[i_level].block[i_block](h, temb)
+                try:
+                    h = self.up[i_level].block[i_block](h, temb)
+                except RuntimeError:
+                    h = h.cpu().to(torch.float32)
+                    temb = temb.cpu().to(torch.float32) if temb is not None else temb
+                    h = self.up[i_level].block[i_block].cpu().to(torch.float32)(h, temb).to(dev).half()
+                    self.up[i_level].block[i_block].to(dev).half()
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h)
             if i_level != 0:
@@ -689,7 +711,7 @@ class LatentRescaler(nn.Module):
         for block in self.res_block1:
             x = block(x, None)
         x = torch.nn.functional.interpolate(x, size=(
-        int(round(x.shape[2] * self.factor)), int(round(x.shape[3] * self.factor))))
+            int(round(x.shape[2] * self.factor)), int(round(x.shape[3] * self.factor))))
         x = self.attn(x)
         for block in self.res_block2:
             x = block(x, None)

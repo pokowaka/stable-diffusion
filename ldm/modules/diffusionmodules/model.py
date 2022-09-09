@@ -32,7 +32,14 @@ def get_timestep_embedding(timesteps, embedding_dim):
 
 def nonlinearity(x):
     # swish
-    return x * torch.sigmoid(x)
+    try:
+        x_ = torch.sigmoid(x) * x
+    except RuntimeError:
+        dev = x.device
+        x = x.cpu()
+        x_ = torch.sigmoid(x) * x
+        x_ = x_.to(dev)
+    return x_
 
 
 def Normalize(in_channels, num_groups=32):

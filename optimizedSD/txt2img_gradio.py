@@ -98,7 +98,6 @@ def generate(
     all_samples = []
     seeds = ""
     with torch.no_grad():
-
         all_samples = list()
         for _ in trange(n_iter, desc="Sampling"):
             for prompts in tqdm(data, desc="data"):

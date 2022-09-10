@@ -137,10 +137,7 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
 
     print(
         (
-                "Samples finished in {0:.2f} minutes and exported to "
-                + sample_path
-                + "\n Seeds used = "
-                + seeds[:-1]
+                "Samples finished in {0:.2f} minutes"
         ).format(time_taken)
     )
 
@@ -357,3 +354,4 @@ if __name__ == '__main__':
     ).save(
         os.path.join(outpath + "/" + str(opt.prompt).replace("/", "")[:100] + f".{opt.format}")
     )
+    print("exported to", outpath + "/" + str(opt.prompt).replace("/", "")[:100] + f".{opt.format}")

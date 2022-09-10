@@ -221,19 +221,16 @@ class CrossAttention(nn.Module):
         mem_free_torch = mem_reserved - mem_active
         mem_free_total = mem_free_cuda + mem_free_torch
 
-        # mem counted before q k v are generated because they're gonna be stored on secondary device
-        allocatable_mem = int(mem_free_total // 2)+1 if dtype == torch.float16 else \
-            int(mem_free_total // 4)+1
-        mp_factor = mem_free_total * 0.13 / 2621440  # handpicked
-        required_mem = int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * mp_factor) if dtype == torch.float16 \
-            else int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * mp_factor / 2)
-        chunk_split = (required_mem // allocatable_mem) * 2 if required_mem > allocatable_mem else 1
-        # print(f"allocatable_mem: {allocatable_mem}, required_mem: {required_mem}, chunk_split: {chunk_split}")
-        # print(q.shape) torch.Size([1, 4096, 320])
-
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q_proj, k_proj, v_proj))
         del q_proj, k_proj, v_proj
         torch.cuda.empty_cache()
+
+        allocatable_mem = int(mem_free_total // 2)+1 if dtype == torch.float16 else \
+            int(mem_free_total // 4)+1
+        speed_mp = 2 if self.fast_forward else 5
+        chunk_split = math.ceil(1.8**(math.ceil(math.log((q.shape[0] * q.shape[1] * q.shape[2]) / allocatable_mem, 2)))*100) * speed_mp  # yes it's crazy
+        # print(f"allocatable_mem: {allocatable_mem}, q.shape: {q.shape}, chunk_split: {chunk_split}")
+        # print(q.shape) torch.Size([1, 4096, 320])
 
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)
         mp = q.shape[1]//chunk_split

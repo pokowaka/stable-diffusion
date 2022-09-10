@@ -169,41 +169,43 @@ class CrossAttention(nn.Module):
             nn.Linear(inner_dim, query_dim),
             nn.Dropout(dropout)
         )
-        self.forward = self.fast_forward if superfastmode else self.slow_forward
+        self.fast_forward = superfastmode
+        # self.forward = self.fast_forward if superfastmode else self.slow_forward
 
-    def fast_forward(self, x, context=None, mask=None):
-        h = self.heads
-        q = self.to_q(x)
-        context = default(context, x)
-        k = self.to_k(context)
-        v = self.to_v(context)
-        del context, x
+    # def fast_forward(self, x, context=None, mask=None):
+    #     h = self.heads
+    #     q = self.to_q(x)
+    #     context = default(context, x)
+    #     k = self.to_k(context)
+    #     v = self.to_v(context)
+    #     del context, x
+    #
+    #     q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
+    #
+    #     sim = einsum('b i d, b j d -> b i j', q, k)  # (8, 4096, 40)
+    #     sim *= self.scale
+    #     del q, k
+    #
+    #     if exists(mask):
+    #         mask = rearrange(mask, 'b ... -> b (...)')
+    #         max_neg_value = -torch.finfo(sim.dtype).max
+    #         mask = repeat(mask, 'b j -> (b h) () j', h=h)
+    #         sim.masked_fill_(~mask, max_neg_value)
+    #         del mask
+    #
+    #     sim[sim.shape[0] // 2:] = sim[sim.shape[0] // 2:].softmax(dim=-1)
+    #     sim[:sim.shape[0] // 2] = sim[:sim.shape[0] // 2].softmax(dim=-1)
+    #
+    #     sim = einsum('b i j, b j d -> b i d', sim, v)
+    #     sim = rearrange(sim, '(b h) n d -> b n (h d)', h=h)
+    #     del h, v
+    #
+    #     return self.to_out(sim)
 
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
-
-        sim = einsum('b i d, b j d -> b i j', q, k)  # (8, 4096, 40)
-        sim *= self.scale
-        del q, k
-
-        if exists(mask):
-            mask = rearrange(mask, 'b ... -> b (...)')
-            max_neg_value = -torch.finfo(sim.dtype).max
-            mask = repeat(mask, 'b j -> (b h) () j', h=h)
-            sim.masked_fill_(~mask, max_neg_value)
-            del mask
-
-        sim[sim.shape[0] // 2:] = sim[sim.shape[0] // 2:].softmax(dim=-1)
-        sim[:sim.shape[0] // 2] = sim[:sim.shape[0] // 2].softmax(dim=-1)
-
-        sim = einsum('b i j, b j d -> b i d', sim, v)
-        sim = rearrange(sim, '(b h) n d -> b n (h d)', h=h)
-        del h, v
-
-        return self.to_out(sim)
-
-    def slow_forward(self, x, context=None, mask=None):
+    def forward(self, x, context=None, mask=None):
         h = self.heads
         device = x.device
+        secondary_device = device if self.fast_forward else torch.device("cpu")
         dtype = x.dtype
         q_proj = self.to_q(x)
         context = default(context, x)
@@ -219,11 +221,12 @@ class CrossAttention(nn.Module):
         mem_free_torch = mem_reserved - mem_active
         mem_free_total = mem_free_cuda + mem_free_torch
 
-        # mem counted before q k v are generated because they're gonna be stored on cpu
+        # mem counted before q k v are generated because they're gonna be stored on secondary device
         allocatable_mem = int(mem_free_total // 2)+1 if dtype == torch.float16 else \
             int(mem_free_total // 4)+1
-        required_mem = int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * 4 * 2 * 50) if dtype == torch.float16 \
-            else int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * 8 * 2 * 50)  # the last 50 is for speed
+        mp_factor = mem_free_total * 0.13 / 2621440  # handpicked
+        required_mem = int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * mp_factor) if dtype == torch.float16 \
+            else int(q_proj.shape[0] * q_proj.shape[1] * q_proj.shape[2] * mp_factor / 2)
         chunk_split = (required_mem // allocatable_mem) * 2 if required_mem > allocatable_mem else 1
         # print(f"allocatable_mem: {allocatable_mem}, required_mem: {required_mem}, chunk_split: {chunk_split}")
         # print(q.shape) torch.Size([1, 4096, 320])
@@ -232,16 +235,16 @@ class CrossAttention(nn.Module):
         del q_proj, k_proj, v_proj
         torch.cuda.empty_cache()
 
-        r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=torch.device("cpu"))
+        r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)
         mp = q.shape[1]//chunk_split
         for i in range(0, q.shape[1], mp):
             q, k = q.to(device), k.to(device)
             s1 = einsum('b i d, b j d -> b i j', q[:, i:i + mp], k)
-            q, k = q.cpu(), k.cpu()
+            q, k = q.to(secondary_device), k.to(secondary_device)
             s1 *= self.scale
             s2 = F.softmax(s1, dim=-1)
             del s1
-            r1[:, i:i + mp] = einsum('b i j, b j d -> b i d', s2, v).cpu()
+            r1[:, i:i + mp] = einsum('b i j, b j d -> b i d', s2, v).to(secondary_device)
             del s2
         r2 = rearrange(r1.to(device), '(b h) n d -> b n (h d)', h=h).to(device)
         del r1, q, k, v

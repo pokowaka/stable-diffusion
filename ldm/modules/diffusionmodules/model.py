@@ -202,14 +202,21 @@ class AttnBlock(nn.Module):
         q = q.reshape(b, c, h * w)
         q = q.permute(0, 2, 1)  # b,hw,c
         k = k.reshape(b, c, h * w)  # b,c,hw
-        w_ = torch.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
+        try:
+            w_ = torch.bmm(q, k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]
+        except:
+            w_ = torch.bmm(q.cpu().to(torch.float32), k.cpu().to(torch.float32)).to(dev)
         del q, k
         w_ = w_ * (int(c) ** (-0.5))  # torch.Size([1, 43264, 43264])
-        w_cpu = torch.zeros_like(w_, dtype=torch.float16, device=torch.device("cpu"))
-        w_cpu[:, w_.shape[1]//2:, w_.shape[2]//2:] = nn.functional.softmax(w_[:, w_.shape[1]//2:, w_.shape[2]//2:], dim=2).cpu()
-        w_cpu[:, :w_.shape[1]//2, :w_.shape[2]//2] = nn.functional.softmax(w_[:, :w_.shape[1]//2, :w_.shape[2]//2], dim=2).cpu()
-        del w_
-        w_ = w_cpu.to(dev).permute(0, 2, 1)
+        try:
+            w_ = nn.functional.softmax(w_, dim=2)
+            w_ = w_.permute(0, 2, 1)
+        except:
+            w_cpu = torch.zeros_like(w_, dtype=torch.float16, device=torch.device("cpu"))
+            w_cpu[:, w_.shape[1]//2:, w_.shape[2]//2:] = nn.functional.softmax(w_[:, w_.shape[1]//2:, w_.shape[2]//2:], dim=2).cpu()
+            w_cpu[:, :w_.shape[1]//2, :w_.shape[2]//2] = nn.functional.softmax(w_[:, :w_.shape[1]//2, :w_.shape[2]//2], dim=2).cpu()
+            del w_
+            w_ = w_cpu.to(dev).permute(0, 2, 1)
 
         # attend to values
         v = v.to(dev)

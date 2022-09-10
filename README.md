@@ -19,9 +19,9 @@ Example gradio command with txt2img and high-res mode:
 ```
 python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowvram.yaml
 ```
-the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the cost of the speed.
+the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the slight cost of the speed.
 
-On rtx 3070, generation of 1920x1088 image took 9 minutes sharp.
+On rtx 3070, generation of 1920x1088 image took 9 minutes sharp, 512x512 30 seconds.
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">

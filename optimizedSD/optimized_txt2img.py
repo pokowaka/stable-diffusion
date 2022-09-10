@@ -355,5 +355,5 @@ if __name__ == '__main__':
         _modelCS,
         _modelFS
     ).save(
-        os.path.join("temp" + f".{opt.format}")
+        os.path.join(outpath + "/" + str(opt.prompt).replace("/", "")[:100] + f".{opt.format}")
     )

@@ -6,7 +6,9 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
 
 <br>
-This repo can generate 1920x1088 and 1600x1600 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
+This repo can generate:
+1920x1088 and 1600x1600 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
+1024x1024 without superfastmode and 768x768 with it. (on 4 gb vram)<br>
 
 ### How to generate so high-res images?
 The superfast mode is enabled by default, however if you encounter OOM errors or want to go higher in resolution, disable it:

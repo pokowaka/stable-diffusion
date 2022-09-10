@@ -199,6 +199,7 @@ class CrossAttention(nn.Module):
             int(mem_free_total // 4)+1
 
         speed_mp = (2 if self.fast_forward else 4) if speed_mp is None else speed_mp
+        speed_mp *= (mem_free_total // 7055867392)
         # torch.Size([8, 50176, 40]) : 5  # 1792
         # torch.Size([8, 46656, 40]) : 5  # 1728
         # torch.Size([8, 43264, 40]) : 4  # 1664
@@ -206,7 +207,7 @@ class CrossAttention(nn.Module):
         # torch.Size([8, 36864, 40]) : 3  # 1536
 
         chunk_split = math.ceil(1.75**(math.ceil(math.log((q.shape[0] * q.shape[1] * q.shape[2]) / allocatable_mem, 2)))*100) * speed_mp  # yes it's crazy
-        print(f"allocatable_mem: {allocatable_mem}, q.shape: {q.shape}, chunk_split: {chunk_split}")
+        # print(f"allocatable_mem: {allocatable_mem}, q.shape: {q.shape}, chunk_split: {chunk_split}")
         # print(q.shape) torch.Size([1, 4096, 320])
 
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)

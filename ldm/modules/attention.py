@@ -199,7 +199,7 @@ class CrossAttention(nn.Module):
             int(mem_free_total // 4)+1
 
         speed_mp = (2 if self.fast_forward else 4) if speed_mp is None else speed_mp
-        speed_mp *= (mem_free_total // 7055867392 + 1)
+        speed_mp = speed_mp * math.ceil(mem_free_total / 7055867392) + 1
         # torch.Size([8, 50176, 40]) : 5  # 1792
         # torch.Size([8, 46656, 40]) : 5  # 1728
         # torch.Size([8, 43264, 40]) : 4  # 1664

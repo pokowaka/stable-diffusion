@@ -191,10 +191,10 @@ class AttnBlock(nn.Module):
         dev = x.device
         h_ = x
         x = x.cpu()
-        h_ = self.norm(h_)
-        q = self.q(h_)
-        k = self.k(h_)
-        v = self.v(h_).cpu()
+        h_ = self.norm.to(dev)(h_)
+        q = self.q.to(dev)(h_)
+        k = self.k.to(dev)(h_)
+        v = self.v.to(dev)(h_).cpu()
         del h_
 
         # compute attention
@@ -225,7 +225,7 @@ class AttnBlock(nn.Module):
         del w_, v
         h_ = h_.reshape(b, c, h, w)
 
-        h_ = self.proj_out(h_)
+        h_ = self.proj_out.to(dev)(h_)
 
         return x.to(dev) + h_
 
@@ -574,7 +574,10 @@ class Decoder(nn.Module):
 
         # middle
         h = self.mid.block_1(h, temb)
-        h = self.mid.attn_1(h)
+        try:
+            h = self.mid.attn_1(h)
+        except:
+            h = self.mid.attn_1(h.cpu().to(torch.float32)).half().to(dev)
         h = self.mid.block_2(h, temb)
 
         # upsampling

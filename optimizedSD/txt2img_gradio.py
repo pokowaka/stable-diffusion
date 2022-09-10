@@ -58,6 +58,7 @@ def generate(
         turbo,
         full_precision,
         sampler,
+        speed_mp
 ):
     C = 4
     f = 8
@@ -141,6 +142,7 @@ def generate(
                         eta=ddim_eta,
                         x_T=start_code,
                         sampler=sampler,
+                        speed_mp=speed_mp
                     )
 
                     modelFS.to(device)
@@ -190,7 +192,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='txt2img using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')
-    parser.add_argument('--outputs_path', default="outputs/txt2img-samples", type=str, help='output imgs path')
+    parser.add_argument('--outputs-path', default="outputs/txt2img-samples", type=str, help='output imgs path')
     args = parser.parse_args()
     config = args.config_path
     ckpt = args.ckpt_path
@@ -246,6 +248,7 @@ if __name__ == '__main__':
             gr.Checkbox(value=True),
             "checkbox",
             gr.Radio(["ddim", "plms"], value="plms"),
+            gr.Slider(1, 10, value=3, step=1),
         ],
         outputs=["image", "text"],
     )

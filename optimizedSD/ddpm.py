@@ -311,8 +311,8 @@ class DiffusionWrapper(pl.LightningModule):
         super().__init__()
         self.diffusion_model = instantiate_from_config(diff_model_config)
 
-    def forward(self, x, t, cc):
-        out = self.diffusion_model(x, t, context=cc)
+    def forward(self, x, t, cc, speed_mp):
+        out = self.diffusion_model(x, t, context=cc, speed_mp=speed_mp)
         return out
 
 
@@ -397,20 +397,20 @@ class UNet(DDPM):
             print(f"setting self.scale_factor to {self.scale_factor}")
             print("### USING STD-RESCALING ###")
 
-    def apply_model(self, x_noisy, t, cond, return_ids=False):
+    def apply_model(self, x_noisy, t, cond, speed_mp=None, return_ids=False):
 
         if not self.turbo:
             self.model1.to(self.cdevice)
 
         step = self.unet_bs
-        h, emb, hs = self.model1(x_noisy[0:step], t[:step], cond[:step])
+        h, emb, hs = self.model1(x_noisy[0:step], t[:step], cond[:step], speed_mp=speed_mp)
         bs = cond.shape[0]
 
         # assert bs%2 == 0
         lenhs = len(hs)
 
         for i in range(step, bs, step):
-            h_temp, emb_temp, hs_temp = self.model1(x_noisy[i:i + step], t[i:i + step], cond[i:i + step])
+            h_temp, emb_temp, hs_temp = self.model1(x_noisy[i:i + step], t[i:i + step], cond[i:i + step], speed_mp)
             h = torch.cat((h, h_temp))
             emb = torch.cat((emb, emb_temp))
             for j in range(lenhs):
@@ -483,6 +483,7 @@ class UNet(DDPM):
                log_every_t=100,
                unconditional_guidance_scale=1.,
                unconditional_conditioning=None,
+               speed_mp=None
                ):
 
         if self.turbo:
@@ -520,6 +521,7 @@ class UNet(DDPM):
                                          log_every_t=log_every_t,
                                          unconditional_guidance_scale=unconditional_guidance_scale,
                                          unconditional_conditioning=unconditional_conditioning,
+                                         speed_mp=speed_mp
                                          )
 
         elif sampler == "ddim":
@@ -546,7 +548,7 @@ class UNet(DDPM):
                       callback=None, quantize_denoised=False,
                       mask=None, x0=None, img_callback=None, log_every_t=100,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None, ):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None, speed_mp=None):
 
         device = self.betas.device
         timesteps = self.ddim_timesteps
@@ -574,7 +576,7 @@ class UNet(DDPM):
                                       corrector_kwargs=corrector_kwargs,
                                       unconditional_guidance_scale=unconditional_guidance_scale,
                                       unconditional_conditioning=unconditional_conditioning,
-                                      old_eps=old_eps, t_next=ts_next)
+                                      old_eps=old_eps, t_next=ts_next, speed_mp=speed_mp)
             img, pred_x0, e_t = outs
             old_eps.append(e_t)
             if len(old_eps) >= 4:
@@ -586,18 +588,18 @@ class UNet(DDPM):
 
     @torch.no_grad()
     def p_sample_plms(self, x, c, t, index, repeat_noise=False, use_original_steps=False, quantize_denoised=False,
-                      temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
+                      temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None, speed_mp=None,
                       unconditional_guidance_scale=1., unconditional_conditioning=None, old_eps=None, t_next=None):
         b, *_, device = *x.shape, x.device
 
-        def get_model_output(x, t):
+        def get_model_output(x, t, speed_mp):
             if unconditional_conditioning is None or unconditional_guidance_scale == 1.:
                 e_t = self.apply_model(x, t, c)
             else:
                 x_in = torch.cat([x] * 2)
                 t_in = torch.cat([t] * 2)
                 c_in = torch.cat([unconditional_conditioning, c])
-                e_t_uncond, e_t = self.apply_model(x_in, t_in, c_in).chunk(2)
+                e_t_uncond, e_t = self.apply_model(x_in, t_in, c_in, speed_mp=speed_mp).chunk(2)
                 e_t = e_t_uncond + unconditional_guidance_scale * (e_t - e_t_uncond)
 
             if score_corrector is not None:
@@ -630,11 +632,11 @@ class UNet(DDPM):
             x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
             return x_prev, pred_x0
 
-        e_t = get_model_output(x, t)
+        e_t = get_model_output(x, t, speed_mp=speed_mp)
         if len(old_eps) == 0:
             # Pseudo Improved Euler (2nd order)
             x_prev, pred_x0 = get_x_prev_and_pred_x0(e_t, index)
-            e_t_next = get_model_output(x_prev, t_next)
+            e_t_next = get_model_output(x_prev, t_next, speed_mp)
             e_t_prime = (e_t + e_t_next) / 2
         elif len(old_eps) == 1:
             # 2nd order Pseudo Linear Multistep (Adams-Bashforth)

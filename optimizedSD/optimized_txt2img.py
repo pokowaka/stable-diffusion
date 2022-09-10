@@ -42,6 +42,7 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
     if opt.fixed_code:
         start_code = torch.randn([opt.n_samples, opt.C, opt.H // opt.f, opt.W // opt.f], device=opt.device)
 
+    speed_mp = opt.speed_mp
     batch_size = opt.n_samples
     if not opt.from_file and prompt is None:
         prompt = opt.prompt
@@ -109,8 +110,8 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
                         eta=opt.ddim_eta,
                         x_T=start_code,
                         sampler=opt.sampler,
+                        speed_mp=speed_mp
                     )
-
                     modelFS.to(opt.device)
 
                     print(samples_ddim.shape)
@@ -264,6 +265,12 @@ if __name__ == '__main__':
         type=int,
         default=1,
         help="Slightly reduces inference time at the expense of high VRAM (value > 1 not recommended )",
+    )
+    parser.add_argument(
+        "--speed_mp",
+        type=int,
+        default=3,
+        help="More vram, more image res (better not touch this )",
     )
     parser.add_argument(
         "--turbo",

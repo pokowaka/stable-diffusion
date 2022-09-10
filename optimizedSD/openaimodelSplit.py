@@ -65,12 +65,12 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
     support it as an extra input.
     """
 
-    def forward(self, x, emb, context=None):
+    def forward(self, x, emb, context=None, speed_mp=None):
         for layer in self:
             if isinstance(layer, TimestepBlock):
                 x = layer(x, emb)
             elif isinstance(layer, SpatialTransformer):
-                x = layer(x, context)
+                x = layer(x, context, speed_mp)
             else:
                 x = layer(x)
         return x
@@ -594,7 +594,7 @@ class UNetModelEncode(nn.Module):
         )
         self._feature_size += ch
 
-    def forward(self, x, timesteps=None, context=None, y=None):
+    def forward(self, x, timesteps=None, context=None, speed_mp=None, y=None):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -616,9 +616,9 @@ class UNetModelEncode(nn.Module):
 
         h = x.type(self.dtype)
         for module in self.input_blocks:
-            h = module(h, emb, context)
+            h = module(h, emb, context, speed_mp)
             hs.append(h)
-        h = self.middle_block(h, emb, context)
+        h = self.middle_block(h, emb, context, speed_mp)
 
         return h, emb, hs
 

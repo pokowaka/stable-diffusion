@@ -7,7 +7,7 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 <br>
 This repo can generate:
-1920x1088 and 1600x1600 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
+1920x1088 and 1792x1792 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
 1024x1024 without superfastmode and 768x768 with it. (on 4 gb vram)<br>
 
 ### How to generate so high-res images?

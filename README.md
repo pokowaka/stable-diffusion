@@ -1,4 +1,4 @@
-# Update: v1.0.1 superfast mode edition
+# Update: v1.0.2 even superfaster mode edition
 
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
@@ -15,15 +15,13 @@ The superfast mode is enabled by default, however if you encounter OOM errors or
 
 Example cli command with txt2img and high-res mode:
 ```
-python optimizedSD/optimized_txt2img.py --prompt "an apple" --config_path optimizedSD/v1-inference_lowvram.yaml --H 512 --W 512 --seed 27 --n_iter 2 --n_samples 10 --ddim_steps 50
+python optimizedSD/optimized_txt2img.py --prompt "an apple" --config_path optimizedSD/v1-inference_lowvram.yaml --H 512 --W 512 --seed 27 --n_iter 1 --n_samples 1 --ddim_steps 50
 ```
 Example gradio command with txt2img and high-res mode:
 ```
 python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowvram.yaml
 ```
 the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the slight cost of the speed.
-
-On rtx 3070, generation of 1920x1088 image took 9 minutes sharp, 512x512 30 seconds.
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">
@@ -53,7 +51,7 @@ So run: <br>
 
 <h2 align="center">Additional steps for AMD Cards</h2>
 
-After activating your conda environment, you have to update torch and torchvision wheels which were built with ROCm support:
+After activating your conda environment, you have to update torch and torchvision wheels which were built with ROCm support (only on linux):
 
 `pip3 install --upgrade torch torchvision --extra-index-url https://download.pytorch.org/whl/rocm5.1.1`
 

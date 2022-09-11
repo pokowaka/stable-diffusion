@@ -248,7 +248,7 @@ if __name__ == '__main__':
             gr.Checkbox(value=True),
             "checkbox",
             gr.Radio(["ddim", "plms"], value="plms"),
-            gr.Slider(1, 10, value=3, step=1),
+            gr.Slider(1, 12, value=3, step=1),
         ],
         outputs=["image", "text"],
     )

@@ -189,12 +189,13 @@ class AttnBlock(nn.Module):
 
     def forward(self, x):
         dev = x.device
+        precision = x.dtype
         h_ = x
         x = x.cpu()
-        h_ = self.norm.to(dev)(h_)
-        q = self.q.to(dev)(h_)
-        k = self.k.to(dev)(h_)
-        v = self.v.to(dev)(h_).cpu()
+        h_ = self.norm.to(precision).to(dev)(h_)
+        q = self.q.to(precision).to(dev)(h_)
+        k = self.k.to(precision).to(dev)(h_)
+        v = self.v.to(precision).to(dev)(h_).cpu()
         del h_
 
         # compute attention
@@ -225,7 +226,7 @@ class AttnBlock(nn.Module):
         del w_, v
         h_ = h_.reshape(b, c, h, w)
 
-        h_ = self.proj_out.to(dev)(h_)
+        h_ = self.proj_out.to(precision).to(dev)(h_)
 
         return x.to(dev) + h_
 

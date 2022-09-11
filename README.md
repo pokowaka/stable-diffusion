@@ -63,6 +63,8 @@ To achieve this, the stable diffusion model is fragmented into four parts which 
 After the calculation is done, they are moved back to the CPU. This allows us to run a bigger model while requiring less
 VRAM.
 
+Also I invented the sliced atttention technique, which allows to push the model's abilities even further. It works by automatically determining the slice size from your vram and image size and then allocating it one by one accordingly. 
+
 <h1 align="center">Installation</h1>
 
 

@@ -5,10 +5,29 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
 
+Below you can see the comparison table.
 <br>
-This repo can generate:
-1920x1088 and 1792x1792 without superfastmode and 960x960 with it. (on 8 gb vram)<br>
-1024x1024 without superfastmode and 768x768 with it. (on 4 gb vram)<br>
+| resolution 	| steps 	| speed_mp 	| time          	| vram 	| low vram mode 	|<br>
+|------------	|-------	|----------	|---------------	|------	|---------------	|<br>
+| 512x512    	| 50    	| 1        	| 1.5 minutes   	| 4    	| no            	|<br>
+| 512x512    	| 50    	| 1        	| 36 seconds    	| 8    	| no            	|<br>
+| 512x512    	| 50    	| 1        	| 18 seconds    	| 24   	| no            	|<br>
+| 1024x1024  	| 30    	| 1        	| 10 minutes    	| 4    	| yes           	|<br>
+| 1024x1024  	| 50    	| 3        	| 10 minutes    	| 4    	| no            	|<br>
+| 1024x1024  	| 50    	| 1        	| 2.306 minutes 	| 8    	| no            	|<br>
+| 1024x1024  	| 50    	| 1        	| 70 seconds    	| 24   	| no            	|<br>
+| 1600x1600  	| 50    	| 3        	| 12.6 minutes  	| 8    	| no            	|<br>
+| 1600x1600  	| 50    	| 3        	| 4.5 minutes   	| 24   	| no            	|<br>
+| 1600x1600  	| 50    	| 2        	| 4.3 minutes   	| 24   	| no            	|<br>
+| 1984x1984  	| 30    	| 3        	| 7.5 minutes   	| 24   	| no            	|<br>
+| 2048x2048  	| 30    	| 3        	| 8.659 minutes 	| 24   	| no            	|<br>
+| 2048x2048  	| 50    	| 3        	| 13.44 minutes 	| 24   	| no            	|<br>
+| 2048x2048  	| 31    	| 11       	| 1 hour        	| 24   	| yes           	|<br>
+| 3840x2112  	| 1     	| 11       	| 25 minutes    	| 24   	| yes           	|<br>
+<br>
+
+gpus used: gtx 1050 ti, rtx 3070, rtx 3090
+(huge thanks to @therustysmear for helping me in these tests)
 
 ### How to generate so high-res images?
 The superfast mode is enabled by default, however if you encounter OOM errors or want to go higher in resolution, disable it:

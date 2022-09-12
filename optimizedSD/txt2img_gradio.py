@@ -1,6 +1,9 @@
 import argparse
+import asyncio
+import logging
 import os
 import re
+import sys
 import time
 from contextlib import nullcontext
 from itertools import islice
@@ -16,12 +19,12 @@ from pytorch_lightning import seed_everything
 from torch import autocast
 from torchvision.utils import make_grid
 from tqdm import tqdm, trange
-from transformers import logging
+from transformers import logging as transformers_logging
 import mimetypes
 from ldm.util import instantiate_from_config
-from optimUtils import split_weighted_subprompts, logger
+from optimUtils import split_weighted_subprompts
 
-logging.set_verbosity_error()
+transformers_logging.set_verbosity_error()
 
 mimetypes.init()
 mimetypes.add_type("application/javascript", ".js")
@@ -33,12 +36,22 @@ def chunk(it, size):
 
 
 def load_model_from_config(ckpt, verbose=False):
-    print(f"Loading model from {ckpt}")
+    logging.info(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
     if "global_step" in pl_sd:
-        print(f"Global Step: {pl_sd['global_step']}")
+        logging.info(f"Global Step: {pl_sd['global_step']}")
     sd = pl_sd["state_dict"]
     return sd
+
+
+async def get_logs():
+    # global lines
+    # while True:
+    #     await asyncio.sleep(3)
+    #     all_lines = open("log.txt", "r", encoding="utf8").readlines()
+    #     yield "\n".join(all_lines)
+    return "\n".join([x for x in open("log.txt", "r", encoding="utf8").readlines()] +
+                     [y for y in open("tqdm.txt", "r", encoding="utf8").readlines()])
 
 
 def generate(
@@ -60,6 +73,7 @@ def generate(
         sampler,
         speed_mp
 ):
+    logging.info(f"prompt: {prompt}, W: {Width}, H: {Height}")
     C = 4
     f = 8
     start_code = None
@@ -72,8 +86,6 @@ def generate(
         seed = randint(0, 1000000)
     seed = int(seed)
     seed_everything(seed)
-    # Logging
-    logger(locals(), "logs/txt2img_gradio_logs.csv")
 
     if device != "cpu" and not full_precision:
         model.half()
@@ -146,7 +158,7 @@ def generate(
                     )
 
                     modelFS.to(device)
-                    print("saving images")
+                    logging.info("saving images")
                     for i in range(batch_size):
                         x_samples_ddim = modelFS.decode_first_stage(samples_ddim[i].unsqueeze(0))
                         x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
@@ -168,7 +180,7 @@ def generate(
                     del samples_ddim
                     del x_sample
                     del x_samples_ddim
-                    print("memory_final = ", torch.cuda.memory_allocated() / 1e6)
+                    logging.info(str("memory_final = " + str(torch.cuda.memory_allocated() / 1e6)))
 
     toc = time.time()
 
@@ -176,7 +188,6 @@ def generate(
     grid = torch.cat(all_samples, 0)
     grid = make_grid(grid, nrow=n_iter)
     grid = 255.0 * rearrange(grid, "c h w -> h w c").cpu().numpy()
-
     txt = (
             "Samples finished in "
             + str(round(time_taken, 3))
@@ -188,7 +199,31 @@ def generate(
     return Image.fromarray(grid.astype(np.uint8)), txt
 
 
+class TqdmLoggingHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 if __name__ == '__main__':
+    global lines
+    lines = []
+    file_handler = logging.FileHandler(filename='log.txt', mode='w')
+    stdout_handler = logging.StreamHandler(stream=sys.stdout)
+    handlers = [file_handler, stdout_handler, TqdmLoggingHandler()]
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
     parser = argparse.ArgumentParser(description='txt2img using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')
@@ -229,10 +264,14 @@ if __name__ == '__main__':
     modelFS.eval()
     del sd
 
-    demo = gr.Interface(
-        fn=generate,
-        inputs=[
-            "text",
+    demo = gr.Blocks()
+
+    with demo:
+        b1 = gr.Button("Get model output")
+        b2 = gr.Button("Print logs")
+
+        b1.click(generate, inputs=[
+            gr.Text(),
             gr.Slider(1, 1000, value=50),
             gr.Slider(1, 100, step=1),
             gr.Slider(1, 100, step=1),
@@ -242,14 +281,15 @@ if __name__ == '__main__':
             gr.Slider(0, 1, step=0.01),
             gr.Slider(1, 2, value=1, step=1),
             gr.Radio(["cuda", "cpu"], value="cuda"),
-            "text",
+            gr.Text(),
             gr.Text(value=args.outputs_path),
             gr.Radio(["png", "jpg"], value='png'),
             gr.Checkbox(value=True),
-            "checkbox",
+            gr.Checkbox(),
             gr.Radio(["ddim", "plms"], value="plms"),
-            gr.Slider(1, 12, value=3, step=1),
-        ],
-        outputs=["image", "text"],
-    )
-    demo.launch(share=True)
+            gr.Slider(1, 12, value=2, step=1),
+        ], outputs=[gr.Image(), gr.Label()])
+        # logs = gr.Text()
+        # logs.cl
+        b2.click(get_logs, inputs=[], outputs=[gr.Text()])
+    demo.launch()

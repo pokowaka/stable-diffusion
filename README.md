@@ -1,9 +1,13 @@
-# Update: v1.0.2 even superfaster mode edition
+# Update: v1.0.3 even superfaster updated GUI mode edition
 
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
+
+## The peacasso GUI version [is out](https://github.com/neonsecret/neonpeacasso)
+
+### Warning: this requires gradio >= 3.3
 
 Below you can see the comparison table.
 <br>
@@ -13,7 +17,7 @@ Below you can see the comparison table.
 | 512x512    	| 50    	| 1        	| 36 seconds    	| 8    	| no            	|
 | 512x512    	| 50    	| 1        	| 18 seconds    	| 24   	| no            	|
 | 1024x1024  	| 30    	| 1        	| 10 minutes    	| 4    	| yes           	|
-| 1024x1024  	| 50    	| 3        	| 15 minutes    	| 4    	| no            	|
+| 1024x1024  	| 50    	| 3        	| 25 minutes    	| 4    	| no            	|
 | 1024x1024  	| 50    	| 1        	| 2.306 minutes 	| 8    	| no            	|
 | 1024x1024  	| 50    	| 1        	| 70 seconds    	| 24   	| no            	|
 | 1600x1600  	| 50    	| 3        	| 12.6 minutes  	| 8    	| no            	|
@@ -22,6 +26,7 @@ Below you can see the comparison table.
 | 1984x1984  	| 30    	| 3        	| 7.5 minutes   	| 24   	| no            	|
 | 2048x2048  	| 30    	| 3        	| 8.659 minutes 	| 24   	| no            	|
 | 2048x2048  	| 50    	| 3        	| 13.44 minutes 	| 24   	| no            	|
+| 2176x2176  	| 30    	| 3        	| 8 minutes 	    | 24   	| no            	|
 | 2048x2048  	| 31    	| 11       	| 1 hour        	| 24   	| yes           	|
 | 512x4096   	| 50    	| 2        	| 3 minutes     	| 24   	| no            	|
 | 3840x2112  	| 1     	| 11       	| 25 minutes    	| 24   	| yes           	|

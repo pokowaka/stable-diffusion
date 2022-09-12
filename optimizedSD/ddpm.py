@@ -5,7 +5,6 @@ https://github.com/openai/improved-diffusion/blob/e94489283bb876ac1477d5dd7709bb
 https://github.com/CompVis/taming-transformers
 -- merci
 """
-
 import math
 from functools import partial
 
@@ -324,7 +323,6 @@ class DiffusionWrapperOut(pl.LightningModule):
     def forward(self, h, emb, tp, hs, cc):
         return self.diffusion_model(h, emb, tp, hs, context=cc)
 
-
 class UNet(DDPM):
     """main class"""
 
@@ -533,7 +531,8 @@ class UNet(DDPM):
         # elif sampler == "euler":
         #     cvd = CompVisDenoiser(self.alphas_cumprod)
         #     sig = cvd.get_sigmas(S)
-        #     samples = self.heun_sampling(noise, sig, conditioning, unconditional_conditioning=unconditional_conditioning,
+        #     samples = self.heun_sampling(noise, sig, conditioning,
+        #     unconditional_conditioning=unconditional_conditioning,
         #                                 unconditional_guidance_scale=unconditional_guidance_scale)
 
         if self.turbo:
@@ -560,6 +559,7 @@ class UNet(DDPM):
         old_eps = []
 
         for i, step in enumerate(iterator):
+            iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
             index = total_steps - i - 1
             ts = torch.full((b,), step, device=device, dtype=torch.long)
             ts_next = torch.full((b,), time_range[min(i + 1, len(time_range) - 1)], device=device, dtype=torch.long)
@@ -698,6 +698,7 @@ class UNet(DDPM):
         x_dec = x_latent
         x0 = init_latent
         for i, step in enumerate(iterator):
+            iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)
 

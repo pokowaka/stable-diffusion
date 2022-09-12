@@ -9,6 +9,8 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ### Warning: this requires gradio >= 3.3
 
+## The superfast and low-vram mode have been updated, speed_mp parameter introduced.
+
 Below you can see the comparison table.
 <br>
 | resolution 	| steps 	| speed_mp 	| time          	| vram 	| low vram mode 	|
@@ -34,6 +36,8 @@ Below you can see the comparison table.
 
 gpus used: gtx 1050 ti, rtx 3070, rtx 3090
 (huge thanks to @therustysmear for helping me in these tests)
+
+speed_mp parameter basically allows to generate bigger-resolution images at the cost of speed, values higher then 10 are possible but not recommended.
 
 ### How to generate so high-res images?
 The superfast mode is enabled by default, however if you encounter OOM errors or want to go higher in resolution, disable it:
@@ -64,6 +68,8 @@ sacrificing inference speed.
 To achieve this, the stable diffusion model is fragmented into four parts which are sent to the GPU only when needed.
 After the calculation is done, they are moved back to the CPU. This allows us to run a bigger model while requiring less
 VRAM.
+
+Also I invented the sliced atttention technique, which allows to push the model's abilities even further. It works by automatically determining the slice size from your vram and image size and then allocating it one by one accordingly. 
 
 <h1 align="center">Installation</h1>
 

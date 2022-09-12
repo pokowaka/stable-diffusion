@@ -10,7 +10,7 @@ from random import randint
 import numpy as np
 import torch
 from PIL import Image
-from einops import rearrange
+from einops import rearrange, repeat
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything
 from torch import autocast
@@ -38,12 +38,36 @@ def load_model_from_config(ckpt, verbose=False):
     return sd
 
 
+def load_img(image, h0, w0):
+    w, h = image.size
+    print(f"loaded input image of size ({w}, {h})")
+    if h0 is not None and w0 is not None:
+        h, w = h0, w0
+
+    w, h = map(lambda x: x - x % 64, (w, h))  # resize to integer multiple of 64
+
+    print(f"New image size ({w}, {h})")
+    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = np.array(image).astype(np.float32) / 255.0
+    image = image[None].transpose(0, 3, 1, 2)
+    image = torch.from_numpy(image)
+    return 2.0 * image - 1.0
+
+
 def get_image(opt, model, modelCS, modelFS, prompt=None):
     tic = time.time()
     start_code = None
     if opt.fixed_code:
         start_code = torch.randn([opt.num_images, opt.C, opt.height // opt.f, opt.width // opt.f], device=opt.device)
 
+    use_init_img = False
+    try:  # Only for peacasso support
+        init_image = load_img(opt.init_image, opt.height, opt.width)
+        use_init_img = True
+        init_image = init_image.cpu().to(torch.float32)
+    except Exception as e:
+        print("Caught", e)
+        pass
     try:
         opt.seed
     except:
@@ -67,6 +91,25 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
         precision_scope = autocast
     else:
         precision_scope = nullcontext
+
+    if use_init_img:
+        modelFS.cpu().to(torch.float32)
+        m = model.device
+        model.cpu().to(torch.float32)
+        model.cdevice = torch.device("cpu")
+        init_image = repeat(init_image, "1 ... -> b ...", b=batch_size)
+        init_latent = modelFS.get_first_stage_encoding(modelFS.encode_first_stage(init_image))
+        modelFS.half()
+        model.cpu()
+        z_enc = model.stochastic_encode(
+            init_latent,
+            torch.tensor([22] * batch_size),
+            opt.seed,
+            opt.ddim_eta,
+            opt.ddim_steps,
+        ).half().to(m)
+        model.half().to(m)
+        model.cdevice = m
 
     seeds = ""
     with torch.no_grad():
@@ -105,20 +148,29 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
                         modelCS.to("cpu")
                         while torch.cuda.memory_allocated() / 1e6 >= mem:
                             time.sleep(1)
-
-                    samples_ddim = model.sample(
-                        S=opt.ddim_steps,
-                        conditioning=c,
-                        seed=opt.seed,
-                        shape=shape,
-                        verbose=False,
-                        unconditional_guidance_scale=opt.scale,
-                        unconditional_conditioning=uc,
-                        eta=opt.ddim_eta,
-                        x_T=start_code,
-                        sampler=opt.sampler,
-                        speed_mp=speed_mp
-                    )
+                    if use_init_img:
+                        samples_ddim = model.sample(
+                            int(23),
+                            c,
+                            z_enc,
+                            unconditional_guidance_scale=opt.scale,
+                            unconditional_conditioning=uc,
+                            sampler="ddim"
+                        )
+                    else:
+                        samples_ddim = model.sample(
+                            S=opt.ddim_steps,
+                            conditioning=c,
+                            seed=opt.seed,
+                            shape=shape,
+                            verbose=False,
+                            unconditional_guidance_scale=opt.scale,
+                            unconditional_conditioning=uc,
+                            eta=opt.ddim_eta,
+                            x_T=start_code,
+                            sampler=opt.sampler,
+                            speed_mp=speed_mp
+                        )
                     modelFS.to(opt.device)
 
                     print(samples_ddim.shape)
@@ -359,6 +411,7 @@ if __name__ == '__main__':
     if opt.device != "cpu" and opt.precision == "autocast":
         _model.half()
         _modelCS.half()
+        _modelFS.half()
 
     all_samples = get_image(
         opt,

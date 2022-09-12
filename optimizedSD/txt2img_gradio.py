@@ -267,29 +267,36 @@ if __name__ == '__main__':
     demo = gr.Blocks()
 
     with demo:
-        b1 = gr.Button("Get model output")
-        b2 = gr.Button("Print logs")
+        with gr.Column():
+            gr.Markdown("# Stable diffusion txt2img (neonsecret's adjustments)")
+            gr.Markdown("### Press 'print logs' button to get the model output logs")
+            with gr.Row():
+                with gr.Column():
+                    outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                    outs2 = [gr.Text(label="Logs")]
+                    b1 = gr.Button("Get model output")
+                    b2 = gr.Button("Print logs")
+                with gr.Column():
+                    with gr.Box():
+                        b1.click(generate, inputs=[
+                            gr.Text(label="Your Prompt"),
+                            gr.Slider(1, 1000, value=50, label="Sampling Steps"),
+                            gr.Slider(1, 100, step=1, label="Number of images"),
+                            gr.Slider(1, 100, step=1, label="Batch size"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Height"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Width"),
+                            gr.Slider(0, 50, value=7.5, step=0.1, label="Guidance scale"),
+                            gr.Slider(0, 1, step=0.01, label="DDIM sampling ETA"),
+                            gr.Slider(1, 2, value=1, step=1, label="U-Net batch size"),
+                            gr.Radio(["cuda", "cpu"], value="cuda", label="Device"),
+                            gr.Text(label="Seed"),
+                            gr.Text(value=args.outputs_path, label="Outputs path"),
+                            gr.Radio(["png", "jpg"], value='png', label="Image format"),
+                            gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
+                            gr.Checkbox(label="Full precision mode (practically does nothing)"),
+                            gr.Radio(["ddim", "plms"], value="plms", label="Sampler"),
+                            gr.Slider(1, 12, value=2, step=1, label="speed_mp multiplier (don't change if not sure)"),
+                        ], outputs=outs1)
+                        b2.click(get_logs, inputs=[], outputs=outs2)
 
-        b1.click(generate, inputs=[
-            gr.Text(),
-            gr.Slider(1, 1000, value=50),
-            gr.Slider(1, 100, step=1),
-            gr.Slider(1, 100, step=1),
-            gr.Slider(64, 4096, value=512, step=64),
-            gr.Slider(64, 4096, value=512, step=64),
-            gr.Slider(0, 50, value=7.5, step=0.1),
-            gr.Slider(0, 1, step=0.01),
-            gr.Slider(1, 2, value=1, step=1),
-            gr.Radio(["cuda", "cpu"], value="cuda"),
-            gr.Text(),
-            gr.Text(value=args.outputs_path),
-            gr.Radio(["png", "jpg"], value='png'),
-            gr.Checkbox(value=True),
-            gr.Checkbox(),
-            gr.Radio(["ddim", "plms"], value="plms"),
-            gr.Slider(1, 12, value=2, step=1),
-        ], outputs=[gr.Image(), gr.Label()])
-        # logs = gr.Text()
-        # logs.cl
-        b2.click(get_logs, inputs=[], outputs=[gr.Text()])
     demo.launch(share=True)

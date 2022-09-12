@@ -292,4 +292,4 @@ if __name__ == '__main__':
         # logs = gr.Text()
         # logs.cl
         b2.click(get_logs, inputs=[], outputs=[gr.Text()])
-    demo.launch()
+    demo.launch(share=True)

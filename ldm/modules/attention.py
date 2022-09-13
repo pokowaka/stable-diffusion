@@ -175,7 +175,7 @@ class CrossAttention(nn.Module):
     def forward(self, x, speed_mp=None, context=None, mask=None):
         h = self.heads
         device = x.device
-        secondary_device = device if self.fast_forward else torch.device("cpu")
+        secondary_device = device if (self.fast_forward and sys.platform != "darwin") else torch.device("cpu")  # macs
         dtype = x.dtype
         q_proj = self.to_q(x)
         context = default(context, x)
@@ -184,29 +184,32 @@ class CrossAttention(nn.Module):
 
         del context, x
 
-        stats = torch.cuda.memory_stats(device)
-        mem_active = stats['active_bytes.all.current']
-        mem_reserved = stats['reserved_bytes.all.current']
-        mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
-        mem_free_torch = mem_reserved - mem_active
-        mem_free_total = mem_free_cuda + mem_free_torch
-
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q_proj, k_proj, v_proj))
         del q_proj, k_proj, v_proj
         torch.cuda.empty_cache()
 
-        allocatable_mem = int(mem_free_total // 2)+1 if dtype == torch.float16 else \
-            int(mem_free_total // 4)+1
+        if sys.platform != "darwin":  # means we can't count gpu memory
+            stats = torch.cuda.memory_stats(device)
+            mem_active = stats['active_bytes.all.current']
+            mem_reserved = stats['reserved_bytes.all.current']
+            mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
+            mem_free_torch = mem_reserved - mem_active
+            mem_free_total = mem_free_cuda + mem_free_torch
+            allocatable_mem = int(mem_free_total // 2) + 1 if dtype == torch.float16 else \
+                int(mem_free_total // 4) + 1
 
-        speed_mp = (2 if self.fast_forward else 4) if speed_mp is None else speed_mp
-        speed_mp = speed_mp * math.ceil(mem_free_total / 7055867392) + 1
-        # torch.Size([8, 50176, 40]) : 5  # 1792
-        # torch.Size([8, 46656, 40]) : 5  # 1728
-        # torch.Size([8, 43264, 40]) : 4  # 1664
-        # torch.Size([8, 40000, 40]) : 4  # 1600
-        # torch.Size([8, 36864, 40]) : 3  # 1536
+            speed_mp = (2 if self.fast_forward else 4) if speed_mp is None else speed_mp
+            speed_mp = speed_mp * math.ceil(mem_free_total / 7055867392) + 1
+            # torch.Size([8, 50176, 40]) : 5  # 1792
+            # torch.Size([8, 46656, 40]) : 5  # 1728
+            # torch.Size([8, 43264, 40]) : 4  # 1664
+            # torch.Size([8, 40000, 40]) : 4  # 1600
+            # torch.Size([8, 36864, 40]) : 3  # 1536
 
-        chunk_split = math.ceil(1.7**(math.ceil(math.log((q.shape[0] * q.shape[1] * q.shape[2]) / allocatable_mem, 2)))*100) * speed_mp  # yes it's crazy
+            chunk_split = math.ceil(1.7 ** (math.ceil(math.log((q.shape[0] * q.shape[1] * q.shape[2]) / allocatable_mem,
+                                                               2))) * 100) * speed_mp  # yes it's crazy
+        else:
+            chunk_split = 2 if speed_mp is None else speed_mp  # :D
         # print(f"allocatable_mem: {allocatable_mem}, q.shape: {q.shape}, chunk_split: {chunk_split}")
         # print(q.shape) torch.Size([1, 4096, 320])
 

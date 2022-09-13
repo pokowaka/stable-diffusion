@@ -274,7 +274,7 @@ if __name__ == '__main__':
                 with gr.Column():
                     outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
                     outs2 = [gr.Text(label="Logs")]
-                    b1 = gr.Button("Get model output")
+                    b1 = gr.Button("Generate!")
                     b2 = gr.Button("Print logs")
                 with gr.Column():
                     with gr.Box():

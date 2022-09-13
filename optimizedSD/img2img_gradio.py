@@ -1,11 +1,14 @@
 import argparse
+import asyncio
+import logging
 import os
 import re
+import sys
 import time
 from contextlib import nullcontext
 from itertools import islice
 from random import randint
-import mimetypes
+
 import gradio as gr
 import numpy as np
 import torch
@@ -16,12 +19,12 @@ from pytorch_lightning import seed_everything
 from torch import autocast
 from torchvision.utils import make_grid
 from tqdm import tqdm, trange
-from transformers import logging
-
+from transformers import logging as transformers_logging
+import mimetypes
 from ldm.util import instantiate_from_config
-from optimUtils import split_weighted_subprompts, logger
+from optimUtils import split_weighted_subprompts
 
-logging.set_verbosity_error()
+transformers_logging.set_verbosity_error()
 
 mimetypes.init()
 mimetypes.add_type("application/javascript", ".js")
@@ -33,10 +36,10 @@ def chunk(it, size):
 
 
 def load_model_from_config(ckpt, verbose=False):
-    print(f"Loading model from {ckpt}")
+    logging.info(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
     if "global_step" in pl_sd:
-        print(f"Global Step: {pl_sd['global_step']}")
+        logging.info(f"Global Step: {pl_sd['global_step']}")
     sd = pl_sd["state_dict"]
     return sd
 
@@ -58,6 +61,16 @@ def load_img(image, h0, w0):
     return 2.0 * image - 1.0
 
 
+async def get_logs():
+    # global lines
+    # while True:
+    #     await asyncio.sleep(3)
+    #     all_lines = open("log.txt", "r", encoding="utf8").readlines()
+    #     yield "\n".join(all_lines)
+    return "\n".join([x for x in open("log.txt", "r", encoding="utf8").readlines()] +
+                     [y for y in open("tqdm.txt", "r", encoding="utf8").readlines()])
+
+
 def generate(
         image,
         prompt,
@@ -76,21 +89,21 @@ def generate(
         img_format,
         turbo,
         full_precision,
+        speed_mp
 ):
-    if seed == "":
-        seed = randint(0, 1000000)
-    seed = int(seed)
-    seed_everything(seed)
-
-    # Logging
+    logging.info(f"prompt: {prompt}, W: {Width}, H: {Height}")
     sampler = "ddim"
-    logger(locals(), log_csv="logs/img2img_gradio_logs.csv")
 
     init_image = load_img(image, Height, Width).to(device)
     model.unet_bs = unet_bs
     model.turbo = turbo
     model.cdevice = device
     modelCS.cond_stage_model.device = device
+
+    try:
+        seed = int(seed)
+    except:
+        seed = randint(0, 1000000)
 
     if device != "cpu" and not full_precision:
         model.half()
@@ -124,7 +137,7 @@ def generate(
     t_enc = int(strength * ddim_steps)
     print(f"target t_enc is {t_enc} steps")
 
-    if full_precision == False and device != "cpu":
+    if not full_precision and device != "cpu":
         precision_scope = autocast
     else:
         precision_scope = nullcontext
@@ -132,7 +145,6 @@ def generate(
     all_samples = []
     seeds = ""
     with torch.no_grad():
-        all_samples = list()
         for _ in trange(n_iter, desc="Sampling"):
             for prompts in tqdm(data, desc="data"):
                 with precision_scope("cuda"):
@@ -173,7 +185,8 @@ def generate(
                         z_enc,
                         unconditional_guidance_scale=scale,
                         unconditional_conditioning=uc,
-                        sampler=sampler
+                        sampler=sampler,
+                        speed_mp=speed_mp
                     )
 
                     modelFS.to(device)
@@ -219,11 +232,35 @@ def generate(
     return Image.fromarray(grid.astype(np.uint8)), txt
 
 
+class TqdmLoggingHandler(logging.Handler):
+    def __init__(self, level=logging.NOTSET):
+        super().__init__(level)
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            tqdm.write(msg)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='img2img using gradio')
+    global lines
+    lines = []
+    file_handler = logging.FileHandler(filename='log.txt', mode='w')
+    stdout_handler = logging.StreamHandler(stream=sys.stdout)
+    handlers = [file_handler, stdout_handler, TqdmLoggingHandler()]
+    logging.basicConfig(
+        level=logging.INFO,
+        format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
+        handlers=handlers
+    )
+
+    parser = argparse.ArgumentParser(description='txt2img using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')
-    parser.add_argument('--outputs_path', default="outputs/txt2img-samples", type=str, help='output imgs path')
+    parser.add_argument('--outputs-path', default="outputs/txt2img-samples", type=str, help='output imgs path')
     args = parser.parse_args()
     config = args.config_path
     ckpt = args.ckpt_path
@@ -260,27 +297,40 @@ if __name__ == '__main__':
     modelFS.eval()
     del sd
 
-    demo = gr.Interface(
-        fn=generate,
-        inputs=[
-            gr.Image(tool="editor", type="pil"),
-            "text",
-            gr.Slider(0, 1, value=0.75),
-            gr.Slider(1, 1000, value=50),
-            gr.Slider(1, 100, step=1),
-            gr.Slider(1, 100, step=1),
-            gr.Slider(64, 4096, value=512, step=64),
-            gr.Slider(64, 4096, value=512, step=64),
-            gr.Slider(0, 50, value=7.5, step=0.1),
-            gr.Slider(0, 1, step=0.01),
-            gr.Slider(1, 2, value=1, step=1),
-            gr.Text(value="cuda"),
-            "text",
-            gr.Text(value=args.outputs_path),
-            gr.Radio(["png", "jpg"], value='png'),
-            gr.Checkbox(value=True),
-            "checkbox",
-        ],
-        outputs=["image", "text"],
-    )
+    demo = gr.Blocks()
+
+    with demo:
+        with gr.Column():
+            gr.Markdown("# Stable diffusion img2img (neonsecret's adjustments)")
+            gr.Markdown("### Press 'print logs' button to get the model output logs")
+            with gr.Row():
+                with gr.Column():
+                    outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                    outs2 = [gr.Text(label="Logs")]
+                    b1 = gr.Button("Generate!")
+                    b2 = gr.Button("Print logs")
+                with gr.Column():
+                    with gr.Box():
+                        b1.click(generate, inputs=[
+                            gr.Image(tool="editor", type="pil", label="Initial image"),
+                            gr.Text(label="Your Prompt"),
+                            gr.Slider(0, 1, value=0.75, label="Generated image strength"),
+                            gr.Slider(1, 1000, value=50, label="Sampling Steps"),
+                            gr.Slider(1, 100, step=1, label="Number of images"),
+                            gr.Slider(1, 100, step=1, label="Batch size"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Height"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Width"),
+                            gr.Slider(0, 50, value=7.5, step=0.1, label="Guidance scale"),
+                            gr.Slider(0, 1, step=0.01, label="DDIM sampling ETA"),
+                            gr.Slider(1, 2, value=1, step=1, label="U-Net batch size"),
+                            gr.Radio(["cuda", "cpu"], value="cuda", label="Device"),
+                            gr.Text(label="Seed"),
+                            gr.Text(value=args.outputs_path, label="Outputs path"),
+                            gr.Radio(["png", "jpg"], value='png', label="Image format"),
+                            gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
+                            gr.Checkbox(label="Full precision mode (practically does nothing)"),
+                            gr.Slider(1, 12, value=2, step=1, label="speed_mp multiplier (don't change if not sure)"),
+                        ], outputs=outs1)
+                        b2.click(get_logs, inputs=[], outputs=outs2)
+
     demo.launch(share=True)

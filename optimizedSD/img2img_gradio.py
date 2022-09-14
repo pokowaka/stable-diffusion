@@ -22,6 +22,7 @@ from transformers import logging as transformers_logging
 
 from ldm.util import instantiate_from_config
 from optimUtils import split_weighted_subprompts
+import asyncio
 
 transformers_logging.set_verbosity_error()
 

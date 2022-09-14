@@ -798,7 +798,7 @@ class UNetModelDecode(nn.Module):
                 # nn.LogSoftmax(dim=1)  # change to cross_entropy and produce non-normalized logits
             )
 
-    def forward(self, h, emb, tp, hs, context=None, y=None):
+    def forward(self, h, emb, tp, hs, context=None, y=None, speed_mp=None):
         """
         Apply the model to an input batch.
         :param x: an [N x C x ...] Tensor of inputs.
@@ -810,7 +810,7 @@ class UNetModelDecode(nn.Module):
 
         for module in self.output_blocks:
             h = th.cat([h, hs.pop()], dim=1)
-            h = module(h, emb, context)
+            h = module(h, emb, context, speed_mp=speed_mp)
         del emb
         h = h.type(tp)
         if self.predict_codebook_ids:

@@ -320,8 +320,8 @@ class DiffusionWrapperOut(pl.LightningModule):
         super().__init__()
         self.diffusion_model = instantiate_from_config(diff_model_config)
 
-    def forward(self, h, emb, tp, hs, cc):
-        return self.diffusion_model(h, emb, tp, hs, context=cc)
+    def forward(self, h, emb, tp, hs, cc, speed_mp):
+        return self.diffusion_model(h, emb, tp, hs, context=cc, speed_mp=speed_mp)
 
 class UNet(DDPM):
     """main class"""
@@ -419,11 +419,11 @@ class UNet(DDPM):
             self.model2.to(self.cdevice)
 
         hs_temp = [hs[j][:step] for j in range(lenhs)]
-        x_recon = self.model2(h[:step], emb[:step], x_noisy.dtype, hs_temp, cond[:step])
+        x_recon = self.model2(h[:step], emb[:step], x_noisy.dtype, hs_temp, cond[:step], speed_mp)
 
         for i in range(step, bs, step):
             hs_temp = [hs[j][i:i + step] for j in range(lenhs)]
-            x_recon1 = self.model2(h[i:i + step], emb[i:i + step], x_noisy.dtype, hs_temp, cond[i:i + step])
+            x_recon1 = self.model2(h[i:i + step], emb[i:i + step], x_noisy.dtype, hs_temp, cond[i:i + step], speed_mp)
             x_recon = torch.cat((x_recon, x_recon1))
 
         if not self.turbo:

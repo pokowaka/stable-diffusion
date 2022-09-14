@@ -65,8 +65,7 @@ def get_image(opt, model, modelCS, modelFS, prompt=None):
         init_image = load_img(opt.init_image, opt.height, opt.width)
         use_init_img = True
         init_image = init_image.cpu().to(torch.float32)
-    except Exception as e:
-        print("Caught", e)
+    except:
         pass
     try:
         opt.seed

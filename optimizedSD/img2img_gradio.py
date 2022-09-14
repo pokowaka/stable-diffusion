@@ -329,7 +329,7 @@ if __name__ == '__main__':
                             gr.Radio(["png", "jpg"], value='png', label="Image format"),
                             gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
                             gr.Checkbox(label="Full precision mode (practically does nothing)"),
-                            gr.Slider(1, 12, value=2, step=1, label="speed_mp multiplier (don't change if not sure)"),
+                            gr.Slider(1, 10, value=1, step=1, label="speed_mp multiplier (don't change if not sure)"),
                         ], outputs=outs1)
                         b2.click(get_logs, inputs=[], outputs=outs2)
 

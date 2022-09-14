@@ -66,7 +66,9 @@ async def get_logs():
 
 
 async def get_nvidia_smi():
-    return os.system("nvidia-smi")
+    proc = await asyncio.create_subprocess_shell('nvidia-smi', stdout=asyncio.subprocess.PIPE)
+    stdout, stderr = await proc.communicate()
+    return str(stdout)
 
 
 def generate(

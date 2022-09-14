@@ -186,9 +186,9 @@ class CrossAttention(nn.Module):
 
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q_proj, k_proj, v_proj))
         del q_proj, k_proj, v_proj
-        torch.cuda.empty_cache()
 
-        if sys.platform != "darwin":  # means we can't count gpu memory
+        if sys.platform != "darwin" and device != "cpu":  # means we can't count gpu memory
+            torch.cuda.empty_cache()
             stats = torch.cuda.memory_stats(device)
             mem_active = stats['active_bytes.all.current']
             mem_reserved = stats['reserved_bytes.all.current']

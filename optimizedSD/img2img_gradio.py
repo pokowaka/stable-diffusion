@@ -1,6 +1,6 @@
 import argparse
-import asyncio
 import logging
+import mimetypes
 import os
 import re
 import sys
@@ -15,12 +15,11 @@ import torch
 from PIL import Image
 from einops import rearrange, repeat
 from omegaconf import OmegaConf
-from pytorch_lightning import seed_everything
 from torch import autocast
 from torchvision.utils import make_grid
 from tqdm import tqdm, trange
 from transformers import logging as transformers_logging
-import mimetypes
+
 from ldm.util import instantiate_from_config
 from optimUtils import split_weighted_subprompts
 
@@ -62,13 +61,12 @@ def load_img(image, h0, w0):
 
 
 async def get_logs():
-    # global lines
-    # while True:
-    #     await asyncio.sleep(3)
-    #     all_lines = open("log.txt", "r", encoding="utf8").readlines()
-    #     yield "\n".join(all_lines)
     return "\n".join([x for x in open("log.txt", "r", encoding="utf8").readlines()] +
                      [y for y in open("tqdm.txt", "r", encoding="utf8").readlines()])
+
+
+async def get_nvidia_smi():
+    return os.system("nvidia-smi")
 
 
 def generate(
@@ -307,8 +305,10 @@ if __name__ == '__main__':
                 with gr.Column():
                     outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
                     outs2 = [gr.Text(label="Logs")]
+                    outs3 = [gr.Text(label="nvidia-smi")]
                     b1 = gr.Button("Generate!")
                     b2 = gr.Button("Print logs")
+                    b3 = gr.Button("nvidia-smi")
                 with gr.Column():
                     with gr.Box():
                         b1.click(generate, inputs=[
@@ -332,5 +332,6 @@ if __name__ == '__main__':
                             gr.Slider(1, 10, value=1, step=1, label="speed_mp multiplier (don't change if not sure)"),
                         ], outputs=outs1)
                         b2.click(get_logs, inputs=[], outputs=outs2)
+                        b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
 
     demo.launch(share=True)

@@ -17,19 +17,19 @@ Below you can see the comparison table.
 |------------	|-------	|----------	|---------------	|------	|---------------	|
 | 512x512    	| 50    	| 1        	| 1.5 minutes   	| 4    	| no            	|
 | 512x512    	| 50    	| 1        	| 36 seconds    	| 8    	| no            	|
-| 512x512    	| 50    	| 1        	| 18 seconds    	| 24   	| no            	|
+| 512x512    	| 50    	| 1        	| 15 seconds    	| 24   	| no            	|
 | 1024x1024  	| 30    	| 1        	| 10 minutes    	| 4    	| yes           	|
 | 1024x1024  	| 50    	| 3        	| 25 minutes    	| 4    	| no            	|
 | 1024x1024  	| 50    	| 1        	| 2.306 minutes 	| 8    	| no            	|
 | 1024x1024  	| 50    	| 1        	| 70 seconds    	| 24   	| no            	|
-| 1600x1600  	| 50    	| 3        	| 12.6 minutes  	| 8    	| no            	|
-| 1600x1600  	| 50    	| 3        	| 4.5 minutes   	| 24   	| no            	|
-| 1600x1600  	| 50    	| 2        	| 4.3 minutes   	| 24   	| no            	|
-| 1984x1984  	| 30    	| 3        	| 7.5 minutes   	| 24   	| no            	|
-| 2048x2048  	| 30    	| 3        	| 8.659 minutes 	| 24   	| no            	|
-| 2048x2048  	| 50    	| 3        	| 13.44 minutes 	| 24   	| no            	|
-| 2176x2176  	| 30    	| 3        	| 8 minutes 	    | 24   	| no            	|
-| 2048x2048  	| 31    	| 11       	| 1 hour        	| 24   	| yes           	|
+| 1600x1600  	| 50    	| 1        	| 12.6 minutes  	| 8    	| no            	|
+| 1600x1600  	| 50    	| 1        	| 4.5 minutes   	| 24   	| no            	|
+| 1600x1600  	| 50    	| 1        	| 4.3 minutes   	| 24   	| no            	|
+| 1984x1984  	| 30    	| 1        	| 7.5 minutes   	| 24   	| no            	|
+| 2048x2048  	| 30    	| 1        	| 8.659 minutes 	| 24   	| no            	|
+| 2048x2048  	| 50    	| 1        	| 15 minutes 	    | 24   	| no            	|
+| 2176x2176  	| 30    	| 1        	| 8 minutes 	    | 24   	| no            	|
+| 2048x2048  	| 31    	| 3       	| 1 hour        	| 24   	| yes           	|
 | 512x4096   	| 50    	| 2        	| 3 minutes     	| 24   	| no            	|
 | 3840x2112  	| 1     	| 11       	| 25 minutes    	| 24   	| yes           	|
 <br>
@@ -70,6 +70,7 @@ After the calculation is done, they are moved back to the CPU. This allows us to
 VRAM.
 
 Also I invented the sliced atttention technique, which allows to push the model's abilities even further. It works by automatically determining the slice size from your vram and image size and then allocating it one by one accordingly. 
+You can practically generate any image size, it just depends on the generation speed you are willing to sacrifice.
 
 <h1 align="center">Installation</h1>
 

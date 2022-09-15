@@ -523,6 +523,7 @@ class UNet(DDPM):
                unconditional_guidance_scale=1.,
                unconditional_conditioning=None,
                speed_mp=None,
+               batch_size=None
                ):
 
         if self.turbo:
@@ -583,7 +584,7 @@ class UNet(DDPM):
                 sampler = KDiffusionSampler(self, 'lms')
             samples = sampler.sample(S=S, conditioning=conditioning, batch_size=batch_size,
                                      shape=shape, verbose=False, unconditional_guidance_scale=unconditional_guidance_scale,
-                                     unconditional_conditioning=unconditional_conditioning, eta=eta, x_T=x_T)
+                                     unconditional_conditioning=unconditional_conditioning, eta=eta, x_T=x_latent)
 
         # elif sampler == "euler":
         #     cvd = CompVisDenoiser(self.alphas_cumprod)

@@ -90,10 +90,10 @@ def generate(
         img_format,
         turbo,
         full_precision,
+        sampler,
         speed_mp
 ):
     logging.info(f"prompt: {prompt}, W: {Width}, H: {Height}")
-    sampler = "ddim"
 
     init_image = load_img(image, Height, Width).to(device)
     model.unet_bs = unet_bs
@@ -187,7 +187,8 @@ def generate(
                         unconditional_guidance_scale=scale,
                         unconditional_conditioning=uc,
                         sampler=sampler,
-                        speed_mp=speed_mp
+                        speed_mp=speed_mp,
+                        batch_size=batch_size
                     )
 
                     modelFS.to(device)
@@ -332,6 +333,7 @@ if __name__ == '__main__':
                             gr.Radio(["png", "jpg"], value='png', label="Image format"),
                             gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
                             gr.Checkbox(label="Full precision mode (practically does nothing)"),
+                            gr.Radio(["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"], value="plms", label="Sampler"),
                             gr.Slider(1, 10, value=1, step=1, label="speed_mp multiplier (don't change if not sure)"),
                         ], outputs=outs1)
                         b2.click(get_logs, inputs=[], outputs=outs2)

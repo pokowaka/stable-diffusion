@@ -8,6 +8,7 @@ https://github.com/CompVis/taming-transformers
 import math
 from functools import partial
 
+import k_diffusion as K
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -323,6 +324,46 @@ class DiffusionWrapperOut(pl.LightningModule):
     def forward(self, h, emb, tp, hs, cc, speed_mp):
         return self.diffusion_model(h, emb, tp, hs, context=cc, speed_mp=speed_mp)
 
+
+class CFGDenoiser(torch.nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.inner_model = model
+
+    def forward(self, x, sigma, uncond, cond, cond_scale):
+        x_in = torch.cat([x] * 2)
+        sigma_in = torch.cat([sigma] * 2)
+        cond_in = torch.cat([uncond, cond])
+        uncond, cond = self.inner_model(x_in, sigma_in, cond=cond_in).chunk(2)
+        return uncond + (cond - uncond) * cond_scale
+
+
+class KDiffusionSampler:
+    def __init__(self, m, sampler):
+        self.model = m
+        self.model_wrap = K.external.CompVisDenoiser(m)
+        self.schedule = sampler
+
+    def get_sampler_name(self):
+        return self.schedule
+
+    def sample(self, S, conditioning, batch_size, shape, verbose, unconditional_guidance_scale,
+               unconditional_conditioning, eta, x_T):
+        sigmas = self.model_wrap.get_sigmas(S)
+        if x_T is None:
+            x_T = torch.randn(tuple(shape), device=sigmas[0].device)
+        x = x_T * sigmas[0]
+        model_wrap_cfg = CFGDenoiser(self.model_wrap)
+
+        samples_ddim = K.sampling.__dict__[f'sample_{self.schedule}'](model_wrap_cfg, x, sigmas,
+                                                                      extra_args={'cond': conditioning,
+                                                                                  'uncond': unconditional_conditioning,
+                                                                                  'cond_scale': unconditional_guidance_scale},
+                                                                      disable=False)
+
+        return samples_ddim
+
+
 class UNet(DDPM):
     """main class"""
 
@@ -481,7 +522,7 @@ class UNet(DDPM):
                log_every_t=100,
                unconditional_guidance_scale=1.,
                unconditional_conditioning=None,
-               speed_mp=None
+               speed_mp=None,
                ):
 
         if self.turbo:
@@ -527,6 +568,22 @@ class UNet(DDPM):
                                          unconditional_guidance_scale=unconditional_guidance_scale,
                                          unconditional_conditioning=unconditional_conditioning,
                                          mask=mask, init_latent=x_T, use_original_steps=False)
+        else:
+            if sampler == 'k_dpm_2_a':
+                sampler = KDiffusionSampler(self, 'dpm_2_ancestral')
+            elif sampler == 'k_dpm_2':
+                sampler = KDiffusionSampler(self, 'dpm_2')
+            elif sampler == 'k_euler_a':
+                sampler = KDiffusionSampler(self, 'euler_ancestral')
+            elif sampler == 'k_euler':
+                sampler = KDiffusionSampler(self, 'euler')
+            elif sampler == 'k_heun':
+                sampler = KDiffusionSampler(self, 'heun')
+            elif sampler == 'k_lms':
+                sampler = KDiffusionSampler(self, 'lms')
+            samples = sampler.sample(S=S, conditioning=conditioning, batch_size=batch_size,
+                                     shape=shape, verbose=False, unconditional_guidance_scale=unconditional_guidance_scale,
+                                     unconditional_conditioning=unconditional_conditioning, eta=eta, x_T=x_T)
 
         # elif sampler == "euler":
         #     cvd = CompVisDenoiser(self.alphas_cumprod)

@@ -1,4 +1,4 @@
-# Update: v1.0.3 even superfaster updated GUI mode edition
+# Update: v1.0.4 even superfaster updated GUI mode edition, with k_diffusion samplers (only in gradio)
 
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)

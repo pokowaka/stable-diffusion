@@ -50,8 +50,9 @@ async def get_logs():
 
 
 async def get_nvidia_smi():
-    return os.system("nvidia-smi")
-
+    proc = await asyncio.create_subprocess_shell('nvidia-smi', stdout=asyncio.subprocess.PIPE)
+    stdout, stderr = await proc.communicate()
+    return str(stdout)
 
 def generate(
         prompt,
@@ -293,7 +294,7 @@ if __name__ == '__main__':
                             gr.Radio(["png", "jpg"], value='png', label="Image format"),
                             gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
                             gr.Checkbox(label="Full precision mode (practically does nothing)"),
-                            gr.Radio(["ddim", "plms"], value="plms", label="Sampler"),
+                            gr.Radio(["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"], value="plms", label="Sampler"),
                             gr.Slider(1, 10, value=1, step=1, label="speed_mp multiplier (don't change if not sure)"),
                         ], outputs=outs1)
                         b2.click(get_logs, inputs=[], outputs=outs2)

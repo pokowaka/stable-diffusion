@@ -1,4 +1,5 @@
 # pytorch_diffusion + derived encoder decoder
+import gc
 import math
 import numpy as np
 import torch
@@ -723,6 +724,8 @@ class LatentRescaler(nn.Module):
             x = block(x, None)
         x = torch.nn.functional.interpolate(x, size=(
             int(round(x.shape[2] * self.factor)), int(round(x.shape[3] * self.factor))))
+        torch.cuda.empty_cache()
+        gc.collect()
         x = self.attn(x)
         for block in self.res_block2:
             x = block(x, None)

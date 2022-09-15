@@ -6,17 +6,17 @@ To get the binary,
 ### Step 1. 
 Extract the downloaded archive.
 
+<img src="assets/tutorial_imgs/step 1.jpg" alt=""/>
+
 Also, to download the weights, go [here](https://huggingface.co/CompVis/stable-diffusion-v-1-4-original), and download this:
 
 <img src="assets/tutorial_imgs/weights.jpg" alt=""/>
 
 Rename it to `model.ckpt`
 
-Put the model.ckpt file to StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1
+Put the `model.ckpt` file to `StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1`
 
 run the `2) download weights if not exist.bat` file to check if the weights are place in the right location.
-
-<img src="assets/tutorial_imgs/step 1.jpg" alt=""/>
 
 
 also install git if not installed

@@ -6,7 +6,7 @@ To get the binary,
 ### Step 1. 
 Extract the downloaded archive.
 
-Also, to download the weights, go (here)[https://huggingface.co/CompVis/stable-diffusion-v-1-4-original], and download this:
+Also, to download the weights, go [here](https://huggingface.co/CompVis/stable-diffusion-v-1-4-original), and download this:
 
 <img src="assets/tutorial_imgs/weights.jpg" alt=""/>
 

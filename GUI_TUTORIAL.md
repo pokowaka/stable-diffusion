@@ -1,14 +1,20 @@
 # Stable Diffusion GUI tutorial (for now Windows only)
 ### Step 0. Download the packed GUI
-If you want to go the simple way, 
-[download this](https://www.mediafire.com/file/5otde49sen0f9xc/StableDiffusionGui.zip/file) (8 gb).<br>
+To get the binary, 
+[download this](https://www.mediafire.com/file/h62kbynofpzkhrd/StableDiffusionGui.zip/file) (4 gb).<br>
 
-If you already have a model.ckpt file,
-[download this](https://www.mediafire.com/file/h156krz3xom6jdy/StableDiffusionGui_no_model.zip/file) (4 gb).
 ### Step 1. 
 Extract the downloaded archive.
 
-If you downloaded the 4 gb archive, put the model.ckpt file to StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1
+Also, to download the weights, go (here)[https://huggingface.co/CompVis/stable-diffusion-v-1-4-original], and download this:
+
+<img src="assets/tutorial_imgs/weights.jpg" alt=""/>
+
+Rename it to `model.ckpt`
+
+Put the model.ckpt file to StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1
+
+run the `2) download weights if not exist.bat` file to check if the weights are place in the right location.
 
 <img src="assets/tutorial_imgs/step 1.jpg" alt=""/>
 
@@ -18,7 +24,8 @@ https://git-scm.com/downloads
 
 ### Step 2. 
 Your folder contents should look like this
-<img src="assets/tutorial_imgs/step 2.jpg"/>
+
+<img src="assets/tutorial_imgs/step 2.jpg" alt=""/>
 
 ### Step 3. 
 run the 

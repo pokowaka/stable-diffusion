@@ -1,7 +1,7 @@
 # Stable Diffusion GUI tutorial (for now Windows only)
 ### Step 0. Download the packed GUI
 To get the binary, 
-[download this](https://www.mediafire.com/file/h62kbynofpzkhrd/StableDiffusionGui.zip/file) (4 gb).<br>
+[download this](https://www.mediafire.com/file/k4ima9tb03ebrnp/StableDiffusionGui.zip/file) (4 gb).<br>
 
 ### Step 1. 
 Extract the downloaded archive.

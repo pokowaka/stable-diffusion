@@ -29,6 +29,7 @@ Below you can see the comparison table.
 | 2048x2048  	| 30    	| 1        	| 8.659 minutes 	| 24   	| no            	|
 | 2048x2048  	| 50    	| 1        	| 15 minutes 	    | 24   	| no            	|
 | 2176x2176  	| 30    	| 1        	| 8 minutes 	    | 24   	| no            	|
+| 2048x2048  	| 50    	| 1       	| 48 minutes       	| 8   	| no            	|
 | 2048x2048  	| 31    	| 3       	| 1 hour        	| 24   	| yes           	|
 | 512x4096   	| 50    	| 2        	| 3 minutes     	| 24   	| no            	|
 | 3840x2112  	| 1     	| 11       	| 25 minutes    	| 24   	| yes           	|

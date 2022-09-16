@@ -222,13 +222,14 @@ class AttnBlock(nn.Module):
         del h_
 
         secondary_device = secondary_device if secondary_device is not None else torch.device("cpu")
+        sec_precision = torch.float32 if secondary_device == torch.device("cpu") else torch.float16  # float32 for cpu
 
         # compute attention
         b, c, h, w = q.shape
         q = q.reshape(b, c, h * w).permute(0, 2, 1)
         # q = q.permute(0, 2, 1)  # b,hw,c
         k = k.reshape(b, c, h * w)  # b,c,hw
-        h_ = torch.zeros_like(k, device=secondary_device)
+        h_ = torch.zeros_like(k, device=secondary_device, dtype=sec_precision)
         v = v.reshape(b, c, h * w)
 
         stats = torch.cuda.memory_stats(dev)
@@ -253,11 +254,11 @@ class AttnBlock(nn.Module):
             w1 = w1.permute(0, 2, 1)  # b,hw,hw (first hw of k, second of q)
 
             h_[:, :, i:i + mp] = torch.bmm(v, w1).to(
-                secondary_device)  # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
+                secondary_device).to(sec_precision)  # b, c,hw (hw of q) h_[b,c,j] = sum_i v[b,c,i] w_[b,i,j]
 
         h_ = h_.reshape(b, c, h, w)
 
-        h_ = self.proj_out.to(precision).to(dev)(h_)
+        h_ = self.proj_out.to(secondary_device).to(sec_precision)(h_).to(precision).to(dev)
 
         return x.to(dev) + h_
 

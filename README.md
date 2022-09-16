@@ -1,5 +1,15 @@
 # Update: v1.0.5 even superfaster superbigger-res updated GUI mode edition, with k_diffusion samplers (only in gradio)
 
+<h1 align="center">Optimized Stable Diffusion</h1>
+<p align="center">
+    <img src="https://img.shields.io/github/last-commit/neonsecret/stable-diffusion?logo=Python&logoColor=green&style=for-the-badge"/>
+        <img src="https://img.shields.io/github/issues/neonsecret/stable-diffusion?logo=GitHub&style=for-the-badge"/>
+                <img src="https://img.shields.io/github/stars/neonsecret/stable-diffusion?logo=GitHub&style=for-the-badge"/>
+    <a href="https://colab.research.google.com/github/neonsecret/stable-diffusion/blob/main/optimized_colab.ipynb">
+      <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+    </a>
+</p>
+
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
@@ -53,15 +63,7 @@ python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowv
 ```
 the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the slight cost of the speed.
 
-<h1 align="center">Optimized Stable Diffusion</h1>
-<p align="center">
-    <img src="https://img.shields.io/github/last-commit/neonsecret/stable-diffusion?logo=Python&logoColor=green&style=for-the-badge"/>
-        <img src="https://img.shields.io/github/issues/neonsecret/stable-diffusion?logo=GitHub&style=for-the-badge"/>
-                <img src="https://img.shields.io/github/stars/neonsecret/stable-diffusion?logo=GitHub&style=for-the-badge"/>
-    <a href="https://colab.research.google.com/github/neonsecret/stable-diffusion/blob/main/optimized_colab.ipynb">
-      <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
-    </a>
-</p>
+###Description
 
 This repo is a modified version of the Stable Diffusion repo, optimized to use less VRAM than the original by
 sacrificing inference speed.

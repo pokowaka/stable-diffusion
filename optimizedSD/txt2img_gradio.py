@@ -77,6 +77,7 @@ def generate(
     C = 4
     f = 8
     start_code = None
+    model.to(device)
     model.unet_bs = unet_bs
     model.turbo = turbo
     model.cdevice = device
@@ -156,6 +157,7 @@ def generate(
                     )
 
                     modelFS.to(device)
+                    model.cpu()
                     logging.info("saving images")
                     for i in range(batch_size):
                         x_samples_ddim = modelFS.decode_first_stage(samples_ddim[i].unsqueeze(0))
@@ -225,7 +227,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='txt2img using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')
-    parser.add_argument('--outputs-path', default="outputs/txt2img-samples", type=str, help='output imgs path')
+    parser.add_argument('--outputs_path', default="outputs/txt2img-samples", type=str, help='output imgs path')
     args = parser.parse_args()
     config = args.config_path
     ckpt = args.ckpt_path

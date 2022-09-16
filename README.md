@@ -1,4 +1,4 @@
-# Update: v1.0.4 even superfaster updated GUI mode edition, with k_diffusion samplers (only in gradio)
+# Update: v1.0.5 even superfaster superbigger-res updated GUI mode edition, with k_diffusion samplers (only in gradio)
 
 ## THE GUI IS OUT <br>
 See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
@@ -9,7 +9,7 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ### Warning: this requires gradio >= 3.3
 
-## The superfast and low-vram mode have been updated, speed_mp parameter introduced.
+## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram
 
 Below you can see the comparison table.
 <br>

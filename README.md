@@ -53,7 +53,7 @@ gpus used: gtx 1050 ti, rtx 3070, rtx 3090
 speed_mp parameter basically allows to generate bigger-resolution images at the cost of speed, values higher then 10 are possible but not recommended.
 
 ### How to generate so high-res images?
-The superfast mode is enabled by default, however if you encounter OOM errors or want to go higher in resolution, disable it:
+The default mode already allows to generate as high-res as possible images, however, if you encounter OOM errors or want to go higher in resolution, disable it:
 
 Example cli command with txt2img and high-res mode:
 ```
@@ -65,7 +65,7 @@ python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowv
 ```
 the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the slight cost of the speed.
 
-###Description
+### Description
 
 This repo is a modified version of the Stable Diffusion repo, optimized to use less VRAM than the original by
 sacrificing inference speed.

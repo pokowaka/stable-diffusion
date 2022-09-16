@@ -17,7 +17,9 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ## The peacasso GUI version [is out](https://github.com/neonsecret/neonpeacasso)
 
-### Warning: this requires gradio >= 3.3
+# The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
+
+### Warning: this requires gradio >= 3.3, be sure to install it or update it.
 
 ## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram
 

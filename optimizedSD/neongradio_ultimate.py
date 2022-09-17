@@ -696,7 +696,8 @@ if __name__ == '__main__':
                 gr.Markdown("### Press 'print logs' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
-                        outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                        out_image2 = gr.Image(label="Output Image")
+                        gen_res2 = gr.Text(label="Generation results")
                         outs2 = [gr.Text(label="Logs")]
                         outs3 = [gr.Text(label="nvidia-smi")]
                         b1 = gr.Button("Generate!")
@@ -706,8 +707,8 @@ if __name__ == '__main__':
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
-                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
-                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
+                            b4.click(face_restore, inputs=[out_image2], outputs=[out_image2])
+                            b5.click(upscale2x, inputs=[out_image2], outputs=[out_image2])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="editor", type="pil", label="Initial image"),
                                 gr.Text(label="Your Prompt"),
@@ -731,7 +732,7 @@ if __name__ == '__main__':
                                     value="ddim", label="Sampler"),
                                 gr.Slider(1, 100, value=100, step=1,
                                           label="%, VRAM usage limiter (100 means max speed)"),
-                            ], outputs=outs1)
+                            ], outputs=[out_image2, gen_res2])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
         with gr.Tab("img2img inapint"):
@@ -740,7 +741,8 @@ if __name__ == '__main__':
                 gr.Markdown("### Press 'print logs' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
-                        outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                        out_image3 = gr.Image(label="Output Image")
+                        gen_res3 = gr.Text(label="Generation results")
                         outs2 = [gr.Text(label="Logs")]
                         outs3 = [gr.Text(label="nvidia-smi")]
                         b1 = gr.Button("Generate!")
@@ -750,8 +752,8 @@ if __name__ == '__main__':
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
-                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
-                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
+                            b4.click(face_restore, inputs=[out_image3], outputs=[out_image3])
+                            b5.click(upscale2x, inputs=[out_image3], outputs=[out_image3])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="sketch", type="pil", label="Initial image with a mask"),
                                 gr.Text(label="Your Prompt"),
@@ -775,7 +777,7 @@ if __name__ == '__main__':
                                     value="ddim", label="Sampler"),
                                 gr.Slider(1, 100, value=100, step=1,
                                           label="%, VRAM usage limiter (100 means max speed)"),
-                            ], outputs=outs1)
+                            ], outputs=[out_image3, gen_res3])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
     demo.launch(share=True)

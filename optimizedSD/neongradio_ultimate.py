@@ -227,7 +227,7 @@ def generate_img2img(
                         sampler=sampler,
                         speed_mp=speed_mp,
                         batch_size=batch_size,
-                        init_latent=init_latent if use_mask else None,
+                        x_T=init_latent if use_mask else None,
                         mask=mask if use_mask else None
                     )
 

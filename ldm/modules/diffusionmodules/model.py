@@ -69,8 +69,8 @@ class Upsample(nn.Module):
             try:
                 x = self.conv(x)
             except:
-                x = self.conv.cpu()(x.cpu()).to(dev)
-                self.conv.to(dev)
+                x = self.conv.cpu().to(torch.float32)(x.cpu().to(torch.float32)).to(dev).half()
+                self.conv.to(dev).half()
         return x
 
 

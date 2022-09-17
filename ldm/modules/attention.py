@@ -186,6 +186,8 @@ class CrossAttention(nn.Module):
         del context, x
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q_proj, k_proj, v_proj))
         del q_proj, k_proj, v_proj
+        speed_mp = speed_mp / 100 if speed_mp is not None else 1
+        speed_mp = 1 if speed_mp > 1 or speed_mp < 0 else speed_mp
         if sys.platform != "darwin" and device != "cpu":  # means we can't count gpu memory
             torch.cuda.empty_cache()
             stats = torch.cuda.memory_stats(device)
@@ -193,7 +195,7 @@ class CrossAttention(nn.Module):
             mem_reserved = stats['reserved_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
             mem_free_torch = mem_reserved - mem_active
-            mem_free_total = mem_free_cuda + mem_free_torch
+            mem_free_total = (mem_free_cuda + mem_free_torch) * speed_mp
 
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             s1, s2, s3, s4 = (q.shape[0] * q.shape[1] * q.shape[1] * 1.5 * dtype_multiplyer), \
@@ -202,10 +204,9 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            speed_mp = (2 if self.fast_forward else 3) if speed_mp is None else speed_mp
-            chunk_split = int(((s // mem_free_total) + 1) * 1.3 * speed_mp) if s > mem_free_total else 1
+            chunk_split = int(((s // mem_free_total) + 1) * 1.3) if s > mem_free_total else 1
         else:
-            chunk_split = 2 if speed_mp is None else speed_mp  # :D
+            chunk_split = 1
 
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)
         mp = q.shape[1] // chunk_split

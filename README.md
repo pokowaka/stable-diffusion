@@ -1,4 +1,4 @@
-# Update: v1.0.5 even superfaster superbigger-res updated GUI mode edition, with k_diffusion samplers (only in gradio)
+# Update: v1.0.5 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers (only in gradio)
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">
@@ -17,39 +17,37 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ## The peacasso GUI version [is out](https://github.com/neonsecret/neonpeacasso)
 
+## The gradio UI now has every feature on one page. See usage below.
+
 # The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
 
 ### Warning: this requires gradio >= 3.3, be sure to install it or update it.
 
-## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram
+## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram and 3840x2176 on 24 gb.
 
-Below you can see the comparison table.
+Below you can see the speed/resolution comparison table.
 <br>
-| resolution 	| steps 	| speed_mp 	| time          	| vram 	| low vram mode 	|
+| resolution 	| steps 	| soft_limiter 	| time          	| vram 	| low vram mode 	|
 |------------	|-------	|----------	|---------------	|------	|---------------	|
 | 512x512    	| 50    	| 1       	| 1.5 minutes   	| 4    	| no            	|
 | 512x512    	| 50    	| 1       	| 36 seconds    	| 8    	| no            	|
+| 512x512    	| 50    	| 1       	| 30 seconds    	| 10   	| no            	|
 | 512x512    	| 50    	| 1       	| 15 seconds    	| 24   	| no            	|
-| 1024x1024  	| 30    	| 1       	| 10 minutes    	| 4    	| yes           	|
-| 1024x1024  	| 50    	| 1       	| 25 minutes    	| 4    	| no            	|
-| 1024x1024  	| 50    	| 1       	| 2.306 minutes 	| 8    	| no            	|
+| 1024x1024  	| 50    	| 1       	| 15 minutes    	| 4    	| no             	|
+| 1024x1024  	| 50    	| 1       	| 4 minutes     	| 8    	| no            	|
+| 1024x1024  	| 50    	| 1       	| 3 minutes      	| 10   	| no            	|
 | 1024x1024  	| 50    	| 1       	| 70 seconds    	| 24   	| no            	|
-| 1600x1600  	| 50    	| 1       	| 12.6 minutes  	| 8    	| no            	|
-| 1600x1600  	| 50    	| 1       	| 4.5 minutes   	| 24   	| no            	|
-| 1600x1600  	| 50    	| 1       	| 4.3 minutes   	| 24   	| no            	|
-| 1984x1984  	| 30    	| 1       	| 7.5 minutes   	| 24   	| no            	|
-| 2048x2048  	| 30    	| 1       	| 8.659 minutes 	| 24   	| no            	|
-| 2048x2048  	| 50    	| 1       	| 15 minutes 	    | 24   	| no            	|
-| 2176x2176  	| 30    	| 1       	| 8 minutes 	    | 24   	| no            	|
 | 2048x2048  	| 50    	| 1      	| 25 minutes       	| 8   	| no            	|
-| 512x4096   	| 50    	| 1       	| 3 minutes     	| 24   	| no            	|
+| 2048x2048  	| 50    	| 1      	| 20 minutes       	| 10   	| no            	|
+| 2048x2048  	| 50    	| 1       	| 15 minutes 	    | 24   	| no            	|
+| 512x4096   	| 50    	| 1       	| 2 minutes     	| 24   	| no            	|
 | 3840x2176  	| 50     	| 1       	| 40 minutes    	| 24   	| no             	|
 <br>
 
-gpus used: gtx 1050 ti, rtx 3070, rtx 3090
+gpus used: gtx 1050 ti, rtx 3070, colab gpu, rtx 3090
 (huge thanks to @therustysmear for helping me in these tests)
 
-speed_mp parameter basically allows to generate bigger-resolution images at the cost of speed, values higher then 10 are possible but not recommended.
+soft_limiter parameter limits vram usage, so that you can use your pc while generating images. 100% though allows the max sped.
 
 ### How to generate so high-res images?
 The default mode already allows to generate as high-res as possible images, however, if you encounter OOM errors or want to go higher in resolution, disable it:
@@ -58,9 +56,13 @@ Example cli command with txt2img and high-res mode:
 ```
 python optimizedSD/optimized_txt2img.py --prompt "an apple" --config_path optimizedSD/v1-inference_lowvram.yaml --H 512 --W 512 --seed 27 --n_iter 1 --n_samples 1 --ddim_steps 50
 ```
-Example gradio command with txt2img and high-res mode:
+Example gradio command:
 ```
-python optimizedSD/txt2img_gradio.py --config_path optimizedSD/v1-inference_lowvram.yaml
+python optimizedSD/neongradio_ultimate.py
+```
+Example gradio low-vram command:
+```
+python optimizedSD/neongradio_ultimate.py --config_path optimizedSD/v1-inference_lowvram.yaml
 ```
 the `--config_path optimizedSD/v1-inference_lowvram.yaml` argument enables a low-vram mode which allows to generate bigger-resolution images at the slight cost of the speed.
 
@@ -121,7 +123,7 @@ scripts.
 
 ## txt2img
 
-- `txt2img` can generate _512x512 images from a prompt on a 4GB VRAM GPU in under 25 seconds per image_ on an RTX 2060.
+- `txt2img` can generate _512x512 images from a prompt on a 2GB VRAM GPU in under 25 seconds per image_.
 
 - For example, the following command will generate 20 512x512 images:
 
@@ -129,8 +131,7 @@ scripts.
 
 ## inpainting
 
-- `inpaint_gradio.py` can fill masked parts of an image based on a given prompt. It can inpaint 512x512 images while
-  using under 4GB of VRAM.
+- `Inpainting` can fill masked parts of an image based on a given prompt. It can inpaint 512x512 images while using under 2GB of VRAM.
 
 - To launch the gradio interface for inpainting, run `python optimizedSD/inpaint_gradio.py`. The mask for the image can
   be drawn on the selected image using the brush tool.
@@ -156,10 +157,9 @@ scripts.
 - You can also use the built-in gradio interface for `img2img`, `txt2img` & `inpainting` instead of the command line
   interface. Activate the conda environment and install the latest version of gradio using `pip install gradio`,
 
-- Run img2img using `python optimizedSD/img2img_gradio.py`, txt2img using `python optimizedSD/txt2img_gradio.py` and
-  inpainting using `python optimizedSD/inpaint_gradio.py`.
+- Run the ultimate UI using `python optimizedSD/neongradio_ultimate.py`. All features available on one tab.
 
-- img2img_gradio.py has a feature to crop input images. Look for the pen symbol in the image box after selecting the
+- img2img has a feature to crop input images. Look for the pen symbol in the image box after selecting the
   image.
 
 <h1 align="center">Arguments</h1>
@@ -235,15 +235,3 @@ unspecified.
 
 - The number followed by the colon represents the weight given to the words before the colon. The weights can be both
   fractions or integers.
-
-## Changelog
-
-- v0.8: Added gradio interface for inpainting.
-- v0.7: Added support for logging, jpg file format
-- v0.6: Added support for using weighted prompts. (based on
-  @lstein's [repo](https://github.com/lstein/stable-diffusion))
-- v0.5: Added support for using gradio interface.
-- v0.4: Added support for specifying image seed.
-- v0.3: Added support for using mixed precision.
-- v0.2: Added support for generating images in batches.
-- v0.1: Split the model into multiple parts to run it on lower VRAM.

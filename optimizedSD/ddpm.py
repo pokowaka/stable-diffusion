@@ -5,6 +5,7 @@ https://github.com/openai/improved-diffusion/blob/e94489283bb876ac1477d5dd7709bb
 https://github.com/CompVis/taming-transformers
 -- merci
 """
+import logging
 import math
 from functools import partial
 
@@ -107,6 +108,12 @@ class DDPM(pl.LightningModule):
 
         self.register_buffer('betas', to_torch(betas))
         self.register_buffer('alphas_cumprod', to_torch(alphas_cumprod))
+
+        self.register_buffer('sqrt_alphas_cumprod', to_torch(np.sqrt(alphas_cumprod)))
+        self.register_buffer('sqrt_one_minus_alphas_cumprod', to_torch(np.sqrt(1. - alphas_cumprod)))
+        self.register_buffer('log_one_minus_alphas_cumprod', to_torch(np.log(1. - alphas_cumprod)))
+        self.register_buffer('sqrt_recip_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod)))
+        self.register_buffer('sqrt_recipm1_alphas_cumprod', to_torch(np.sqrt(1. / alphas_cumprod - 1)))
 
 
 class FirstStage(DDPM):
@@ -582,8 +589,11 @@ class UNet(DDPM):
                 sampler = KDiffusionSampler(self, 'heun')
             elif sampler == 'k_lms':
                 sampler = KDiffusionSampler(self, 'lms')
+            if mask is not None:
+                logging.info("k_diffusion does not support masks yet")
             samples = sampler.sample(S=S, conditioning=conditioning, batch_size=batch_size,
-                                     shape=shape, verbose=False, unconditional_guidance_scale=unconditional_guidance_scale,
+                                     shape=shape, verbose=False,
+                                     unconditional_guidance_scale=unconditional_guidance_scale,
                                      unconditional_conditioning=unconditional_conditioning, eta=eta, x_T=x_latent)
 
         # elif sampler == "euler":
@@ -598,6 +608,11 @@ class UNet(DDPM):
             self.model2.to("cpu")
 
         return samples
+
+    def q_sample(self, x_start, t, noise=None):
+        noise = default(noise, lambda: torch.randn_like(x_start))
+        return (extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
+                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise)
 
     @torch.no_grad()
     def plms_sampling(self, cond, b, img,

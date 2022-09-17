@@ -10,8 +10,9 @@
     </a>
 </p>
 
-## THE GUI IS OUT <br>
-See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
+[comment]: <> (## THE GUI IS OUT <br>)
+
+[comment]: <> (See [GUI Usage tutorial for dummies]&#40;GUI_TUTORIAL.md&#41;)
 
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
 
@@ -22,26 +23,33 @@ See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 # The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
 
 ### Warning: this requires gradio >= 3.3, be sure to install it or update it.
-
-## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram and 3840x2176 on 24 gb.
+### New update feature: added codeformer.
+To install, clone the repo, then
+```
+cd CodeFormer
+python basicsr/setup.py develop
+cd ..
+```
+## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram and 3200x3200 on 24 gb.
 
 Below you can see the speed/resolution comparison table.
 <br>
 | resolution 	| steps 	| soft_limiter 	| time          	| vram 	| low vram mode 	|
-|------------	|-------	|----------	|---------------	|------	|---------------	|
-| 512x512    	| 50    	| 1       	| 1.5 minutes   	| 4    	| no            	|
-| 512x512    	| 50    	| 1       	| 36 seconds    	| 8    	| no            	|
-| 512x512    	| 50    	| 1       	| 30 seconds    	| 10   	| no            	|
-| 512x512    	| 50    	| 1       	| 15 seconds    	| 24   	| no            	|
-| 1024x1024  	| 50    	| 1       	| 15 minutes    	| 4    	| no             	|
-| 1024x1024  	| 50    	| 1       	| 4 minutes     	| 8    	| no            	|
-| 1024x1024  	| 50    	| 1       	| 3 minutes      	| 10   	| no            	|
-| 1024x1024  	| 50    	| 1       	| 70 seconds    	| 24   	| no            	|
-| 2048x2048  	| 50    	| 1      	| 25 minutes       	| 8   	| no            	|
-| 2048x2048  	| 50    	| 1      	| 20 minutes       	| 10   	| no            	|
-| 2048x2048  	| 50    	| 1       	| 15 minutes 	    | 24   	| no            	|
-| 512x4096   	| 50    	| 1       	| 2 minutes     	| 24   	| no            	|
-| 3840x2176  	| 50     	| 1       	| 40 minutes    	| 24   	| no             	|
+|------------	|-------	|----------	    |---------------	|------	|---------------	|
+| 512x512    	| 50    	| 1       	    | 1.5 minutes   	| 4    	| no            	|
+| 512x512    	| 50    	| 1       	    | 36 seconds    	| 8    	| no            	|
+| 512x512    	| 50    	| 1       	    | 30 seconds    	| 10   	| no            	|
+| 512x512    	| 50    	| 1       	    | 15 seconds    	| 24   	| no            	|
+| 1024x1024  	| 50    	| 1       	    | 15 minutes    	| 4    	| no             	|
+| 1024x1024  	| 50    	| 1       	    | 4 minutes     	| 8    	| no            	|
+| 1024x1024  	| 50    	| 1       	    | 3 minutes      	| 10   	| no            	|
+| 1024x1024  	| 50    	| 1       	    | 70 seconds    	| 24   	| no            	|
+| 2048x2048  	| 50    	| 1      	    | 25 minutes       	| 8   	| no            	|
+| 2048x2048  	| 50    	| 1      	    | 20 minutes       	| 10   	| no            	|
+| 2048x2048  	| 50    	| 1       	    | 15 minutes 	    | 24   	| no            	|
+| 512x4096   	| 50    	| 1       	    | 2 minutes     	| 24   	| no            	|
+| 3840x2176  	| 50     	| 1       	    | 40 minutes    	| 24   	| no             	|
+| 3200x3200  	| 50     	| 1       	    | 60 minutes    	| 24   	| no             	|
 <br>
 
 gpus used: gtx 1050 ti, rtx 3070, colab gpu, rtx 3090
@@ -86,6 +94,7 @@ placing the weights at the specified location). <br>
 So run: <br>
 `conda env create -f environment.yaml` <br>
 `conda activate ldm`
+
 
 <h2 align="center">Additional steps for AMD Cards</h2>
 

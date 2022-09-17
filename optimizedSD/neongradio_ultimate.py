@@ -1,10 +1,14 @@
+import os
+import sys
+
+sys.path.append('CodeFormer/')
+sys.path.append('../CodeFormer/')
+
 import argparse
 import asyncio
 import logging
 import mimetypes
-import os
 import re
-import sys
 import time
 from contextlib import nullcontext
 from itertools import islice
@@ -25,6 +29,15 @@ from transformers import logging as transformers_logging
 from ldm.util import instantiate_from_config
 from optimUtils import split_weighted_subprompts
 
+from basicsr.utils import img2tensor, tensor2img
+from basicsr.utils.download_util import load_file_from_url
+from facelib.utils.face_restoration_helper import FaceRestoreHelper
+from basicsr.archs.rrdbnet_arch import RRDBNet
+from basicsr.utils.realesrgan_utils import RealESRGANer
+
+from basicsr.utils.registry import ARCH_REGISTRY
+from torchvision.transforms.functional import normalize
+
 transformers_logging.set_verbosity_error()
 
 mimetypes.init()
@@ -37,10 +50,10 @@ def chunk(it, size):
 
 
 def load_model_from_config(ckpt, verbose=False):
-    logging.info(f"Loading model from {ckpt}")
+    print(f"Loading model from {ckpt}")
     pl_sd = torch.load(ckpt, map_location="cpu")
     if "global_step" in pl_sd:
-        logging.info(f"Global Step: {pl_sd['global_step']}")
+        print(f"Global Step: {pl_sd['global_step']}")
     sd = pl_sd["state_dict"]
     return sd
 
@@ -274,6 +287,86 @@ def generate_img2img(
     return Image.fromarray(grid.astype(np.uint8)), txt
 
 
+def upscale2x(img):
+    return Image.fromarray(upsampler.enhance(img, outscale=2)[0])
+
+
+def face_restore(img):
+    only_center_face = False
+    draw_box = False
+    codeformer_fidelity = 0.5
+    upscale = 2
+    face_upsample = True
+    detection_model = "retinaface_resnet50"
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    face_helper = FaceRestoreHelper(
+        True,
+        face_size=512,
+        crop_ratio=(1, 1),
+        det_model=detection_model,
+        save_ext="png",
+        use_parse=True,
+        device=device,
+    )
+    codeformer_net.to(device)
+    bg_upsampler = upsampler
+    face_upsampler = upsampler
+    face_helper.read_image(img)
+    num_det_faces = face_helper.get_face_landmarks_5(
+        only_center_face=only_center_face, resize=640, eye_dist_threshold=5
+    )
+    print(f"\tdetect {num_det_faces} faces")
+    # align and warp each face
+    face_helper.align_warp_face()
+
+    for idx, cropped_face in enumerate(face_helper.cropped_faces):
+        # prepare data
+        cropped_face_t = img2tensor(
+            cropped_face / 255.0, bgr2rgb=True, float32=True
+        )
+        normalize(cropped_face_t, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+        cropped_face_t = cropped_face_t.unsqueeze(0).to(device)
+
+        try:
+            with torch.no_grad():
+                output = codeformer_net(
+                    cropped_face_t, w=codeformer_fidelity, adain=True
+                )[0]
+                restored_face = tensor2img(output, rgb2bgr=True, min_max=(-1, 1))
+            del output
+            torch.cuda.empty_cache()
+        except Exception as error:
+            print(f"\tFailed inference for CodeFormer: {error}")
+            restored_face = tensor2img(
+                cropped_face_t, rgb2bgr=True, min_max=(-1, 1)
+            )
+
+        restored_face = restored_face.astype("uint8")
+        face_helper.add_restored_face(restored_face)
+
+    # paste_back
+    # upsample the background
+    if bg_upsampler is not None:
+        # Now only support RealESRGAN for upsampling background
+        bg_img = bg_upsampler.enhance(img, outscale=upscale)[0]
+    else:
+        bg_img = None
+    face_helper.get_inverse_affine(None)
+    # paste each restored face to the input image
+    if face_upsample and face_upsampler is not None:
+        restored_img = face_helper.paste_faces_to_input_image(
+            upsample_img=bg_img,
+            draw_box=draw_box,
+            face_upsampler=face_upsampler,
+        )
+    else:
+        restored_img = face_helper.paste_faces_to_input_image(
+            upsample_img=bg_img, draw_box=draw_box
+        )
+
+    return Image.fromarray(restored_img)
+
+
 def generate_txt2img(
         prompt,
         ddim_steps,
@@ -419,6 +512,52 @@ def generate_txt2img(
     return Image.fromarray(grid.astype(np.uint8)), txt
 
 
+def download_codeformer(args):
+    pretrain_model_url = {
+        'codeformer': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth',
+        'detection': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_Resnet50_Final.pth',
+        'parsing': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/parsing_parsenet.pth',
+        'realesrgan': 'https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/RealESRGAN_x2plus.pth'
+    }
+    # download weights
+    if not os.path.exists(args.codeformer_path + "CodeFormer/codeformer.pth"):
+        load_file_from_url(url=pretrain_model_url['codeformer'], model_dir=args.codeformer_path + "CodeFormer",
+                           progress=True, file_name=None)
+    if not os.path.exists(args.codeformer_path + "facelib/detection_Resnet50_Final.pth"):
+        load_file_from_url(url=pretrain_model_url['detection'], model_dir=args.codeformer_path + "facelib",
+                           progress=True,
+                           file_name=None)
+    if not os.path.exists(args.codeformer_path + "facelib/parsing_parsenet.pth"):
+        load_file_from_url(url=pretrain_model_url['parsing'], model_dir=args.codeformer_path + "facelib", progress=True,
+                           file_name=None)
+    if not os.path.exists(args.codeformer_path + "realesrgan/RealESRGAN_x2plus.pth"):
+        load_file_from_url(url=pretrain_model_url['realesrgan'], model_dir=args.codeformer_path + "realesrgan",
+                           progress=True, file_name=None)
+
+
+# set enhancer with RealESRGAN
+def set_realesrgan(args):
+    half = True if torch.cuda.is_available() else False
+    model = RRDBNet(
+        num_in_ch=3,
+        num_out_ch=3,
+        num_feat=64,
+        num_block=23,
+        num_grow_ch=32,
+        scale=2,
+    )
+    upsampler = RealESRGANer(
+        scale=2,
+        model_path=args.codeformer_path + "realesrgan/RealESRGAN_x2plus.pth",
+        model=model,
+        tile=400,
+        tile_pad=40,
+        pre_pad=0,
+        half=half,
+    )
+    return upsampler
+
+
 class TqdmLoggingHandler(logging.Handler):
     def __init__(self, level=logging.NOTSET):
         super().__init__(level)
@@ -448,8 +587,28 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='SD by neonsecret using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')
+    parser.add_argument('--codeformer_path', default="models/codeformer/", type=str, help='ckpt path')
     parser.add_argument('--outputs_path', default="outputs/output-samples", type=str, help='output imgs path')
     args = parser.parse_args()
+    args.codeformer_path = args.codeformer_path + "/" if args.codeformer_path[-1] != "/" else args.codeformer_path
+
+    print("Downloading codeformer weights..")
+    download_codeformer(args)
+
+    print("Loading realesr..")
+    upsampler = set_realesrgan(args)
+    print("Loading codeformer..")
+    codeformer_net = ARCH_REGISTRY.get("CodeFormer")(
+        dim_embd=512,
+        codebook_size=1024,
+        n_head=8,
+        n_layers=9,
+        connect_list=["32", "64", "128", "256"],
+    )
+    checkpoint = torch.load(args.codeformer_path + "CodeFormer/codeformer.pth")["params_ema"]
+    codeformer_net.load_state_dict(checkpoint)
+    codeformer_net.eval()
+
     config = args.config_path
     ckpt = args.ckpt_path
     sd = load_model_from_config(f"{ckpt}")
@@ -494,14 +653,19 @@ if __name__ == '__main__':
                 gr.Markdown("### Press 'print logs' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
-                        outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                        out_image = gr.Image(label="Output Image")
+                        gen_res = gr.Text(label="Generation results")
                         outs2 = [gr.Text(label="Logs")]
-                        outs3 = [gr.Text(label="nvidia-smi")]
+                        outs3 = gr.Text(label="nvidia-smi")
                         b1 = gr.Button("Generate!")
-                        b2 = gr.Button("Print logs")
+                        b4 = gr.Button("Face correction")
+                        b5 = gr.Button("Upscale 2x")
+                        b2 = gr.Button("print logs")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
+                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
+                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
                             b1.click(generate_txt2img, inputs=[
                                 gr.Text(label="Your Prompt"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
@@ -523,9 +687,9 @@ if __name__ == '__main__':
                                     value="plms", label="Sampler"),
                                 gr.Slider(1, 100, value=100, step=1,
                                           label="%, VRAM usage limiter (100 means max speed)"),
-                            ], outputs=outs1)
+                            ], outputs=[out_image, gen_res])
                             b2.click(get_logs, inputs=[], outputs=outs2)
-                            b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
+                            b3.click(get_nvidia_smi, inputs=[], outputs=[outs3])
         with gr.Tab("img2img"):
             with gr.Column():
                 gr.Markdown("# Generate images from images (neonsecret's adjustments)")
@@ -536,10 +700,14 @@ if __name__ == '__main__':
                         outs2 = [gr.Text(label="Logs")]
                         outs3 = [gr.Text(label="nvidia-smi")]
                         b1 = gr.Button("Generate!")
+                        b4 = gr.Button("Face correction")
+                        b5 = gr.Button("Upscale 2x")
                         b2 = gr.Button("Print logs")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
+                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
+                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="editor", type="pil", label="Initial image"),
                                 gr.Text(label="Your Prompt"),
@@ -576,10 +744,14 @@ if __name__ == '__main__':
                         outs2 = [gr.Text(label="Logs")]
                         outs3 = [gr.Text(label="nvidia-smi")]
                         b1 = gr.Button("Generate!")
+                        b4 = gr.Button("Face correction")
+                        b5 = gr.Button("Upscale 2x")
                         b2 = gr.Button("Print logs")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
+                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
+                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="sketch", type="pil", label="Initial image with a mask"),
                                 gr.Text(label="Your Prompt"),

@@ -203,7 +203,7 @@ class CrossAttention(nn.Module):
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
             speed_mp = (2 if self.fast_forward else 3) if speed_mp is None else speed_mp
-            chunk_split = int(((s // mem_free_total) + 1) * 2 * speed_mp) if s > mem_free_total else 1
+            chunk_split = int(((s // mem_free_total) + 1) * 1.3 * speed_mp) if s > mem_free_total else 1
         else:
             chunk_split = 2 if speed_mp is None else speed_mp  # :D
 

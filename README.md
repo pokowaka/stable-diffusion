@@ -27,24 +27,23 @@ Below you can see the comparison table.
 <br>
 | resolution 	| steps 	| speed_mp 	| time          	| vram 	| low vram mode 	|
 |------------	|-------	|----------	|---------------	|------	|---------------	|
-| 512x512    	| 50    	| 1        	| 1.5 minutes   	| 4    	| no            	|
-| 512x512    	| 50    	| 1        	| 36 seconds    	| 8    	| no            	|
-| 512x512    	| 50    	| 1        	| 15 seconds    	| 24   	| no            	|
-| 1024x1024  	| 30    	| 1        	| 10 minutes    	| 4    	| yes           	|
-| 1024x1024  	| 50    	| 3        	| 25 minutes    	| 4    	| no            	|
-| 1024x1024  	| 50    	| 1        	| 2.306 minutes 	| 8    	| no            	|
-| 1024x1024  	| 50    	| 1        	| 70 seconds    	| 24   	| no            	|
-| 1600x1600  	| 50    	| 1        	| 12.6 minutes  	| 8    	| no            	|
-| 1600x1600  	| 50    	| 1        	| 4.5 minutes   	| 24   	| no            	|
-| 1600x1600  	| 50    	| 1        	| 4.3 minutes   	| 24   	| no            	|
-| 1984x1984  	| 30    	| 1        	| 7.5 minutes   	| 24   	| no            	|
-| 2048x2048  	| 30    	| 1        	| 8.659 minutes 	| 24   	| no            	|
-| 2048x2048  	| 50    	| 1        	| 15 minutes 	    | 24   	| no            	|
-| 2176x2176  	| 30    	| 1        	| 8 minutes 	    | 24   	| no            	|
-| 2048x2048  	| 50    	| 1       	| 48 minutes       	| 8   	| no            	|
-| 2048x2048  	| 31    	| 3       	| 1 hour        	| 24   	| yes           	|
-| 512x4096   	| 50    	| 2        	| 3 minutes     	| 24   	| no            	|
-| 3840x2112  	| 1     	| 11       	| 25 minutes    	| 24   	| yes           	|
+| 512x512    	| 50    	| 1       	| 1.5 minutes   	| 4    	| no            	|
+| 512x512    	| 50    	| 1       	| 36 seconds    	| 8    	| no            	|
+| 512x512    	| 50    	| 1       	| 15 seconds    	| 24   	| no            	|
+| 1024x1024  	| 30    	| 1       	| 10 minutes    	| 4    	| yes           	|
+| 1024x1024  	| 50    	| 1       	| 25 minutes    	| 4    	| no            	|
+| 1024x1024  	| 50    	| 1       	| 2.306 minutes 	| 8    	| no            	|
+| 1024x1024  	| 50    	| 1       	| 70 seconds    	| 24   	| no            	|
+| 1600x1600  	| 50    	| 1       	| 12.6 minutes  	| 8    	| no            	|
+| 1600x1600  	| 50    	| 1       	| 4.5 minutes   	| 24   	| no            	|
+| 1600x1600  	| 50    	| 1       	| 4.3 minutes   	| 24   	| no            	|
+| 1984x1984  	| 30    	| 1       	| 7.5 minutes   	| 24   	| no            	|
+| 2048x2048  	| 30    	| 1       	| 8.659 minutes 	| 24   	| no            	|
+| 2048x2048  	| 50    	| 1       	| 15 minutes 	    | 24   	| no            	|
+| 2176x2176  	| 30    	| 1       	| 8 minutes 	    | 24   	| no            	|
+| 2048x2048  	| 50    	| 1      	| 25 minutes       	| 8   	| no            	|
+| 512x4096   	| 50    	| 1       	| 3 minutes     	| 24   	| no            	|
+| 3840x2176  	| 50     	| 1       	| 40 minutes    	| 24   	| no             	|
 <br>
 
 gpus used: gtx 1050 ti, rtx 3070, rtx 3090

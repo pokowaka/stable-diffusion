@@ -769,8 +769,9 @@ class UNet(DDPM):
 
         iterator = tqdm(time_range, desc='Decoding image', total=total_steps)
         x_dec = x_latent
-        x0 = init_latent
         for i, step in enumerate(iterator):
+            ts = torch.full((t_start,), step, device=x_latent.device, dtype=torch.long)
+            x0 = init_latent if init_latent is not None else self.q_sample(init_latent, ts)
             iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)

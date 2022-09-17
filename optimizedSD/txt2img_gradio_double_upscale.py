@@ -88,7 +88,7 @@ def generate(
     seed = int(seed)
     seed_everything(seed)
     # Logging
-    logger(locals(), "logs/txt2img_gradio_logs.csv")
+    logger(locals(), "logs/doulbe_upscale.csv")
 
     if device != "cpu" and not full_precision:
         model.half()

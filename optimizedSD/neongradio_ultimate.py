@@ -116,7 +116,7 @@ def generate_img2img(
         turbo,
         full_precision,
         sampler,
-        speed_mp
+        speed_mp,
 ):
     logging.info(f"prompt: {prompt}, W: {Width}, H: {Height}")
 
@@ -152,18 +152,17 @@ def generate_img2img(
 
     init_image = repeat(init_image, "1 ... -> b ...", b=batch_size)
     init_latent = modelFS.get_first_stage_encoding(modelFS.encode_first_stage(init_image))  # move to latent space
-
-    extrema = image['mask'].convert("L").getextrema()
-
-    use_mask = False if extrema[0] == extrema[1] else True
+    try:
+        image['mask']
+        use_mask = True
+    except:
+        use_mask=False
     if use_mask:
         mask = load_mask(image['mask'], Height, Width, init_latent.shape[2], init_latent.shape[3], True).to(device)
         mask = mask[0][0].unsqueeze(0).repeat(4, 1, 1).unsqueeze(0)
         mask = repeat(mask, '1 ... -> b ...', b=batch_size)
         if device != "cpu" and not full_precision:
             mask = mask.half().to(device)
-    else:
-        logging.info("The mask is either blank or all white, not using it.")
 
     if device != "cpu":
         mem = torch.cuda.memory_allocated() / 1e6
@@ -431,7 +430,8 @@ class TqdmLoggingHandler(logging.Handler):
 
 
 if __name__ == '__main__':
-    global lines
+    global lines, use_mask
+    use_mask = True  # by default is false
     lines = []
     file_handler = logging.FileHandler(filename='log.txt', mode='w')
     stdout_handler = logging.StreamHandler(stream=sys.stdout)
@@ -527,7 +527,6 @@ if __name__ == '__main__':
             with gr.Column():
                 gr.Markdown("# Generate images from images (neonsecret's adjustments)")
                 gr.Markdown("### Press 'print logs' button to get the model output logs")
-                gr.Markdown("You can draw a mask for inpainting, though it isn't required")
                 with gr.Row():
                     with gr.Column():
                         outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
@@ -539,7 +538,7 @@ if __name__ == '__main__':
                     with gr.Column():
                         with gr.Box():
                             b1.click(generate_img2img, inputs=[
-                                gr.Image(tool="sketch", type="pil", label="Initial image"),
+                                gr.Image(tool="editor", type="pil", label="Initial image"),
                                 gr.Text(label="Your Prompt"),
                                 gr.Slider(0, 1, value=0.75, label="Generated image strength"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
@@ -564,5 +563,45 @@ if __name__ == '__main__':
                             ], outputs=outs1)
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
-
+        with gr.Tab("img2img inapint"):
+            with gr.Column():
+                gr.Markdown("# Generate images from images (with a mask) (neonsecret's adjustments)")
+                gr.Markdown("### Press 'print logs' button to get the model output logs")
+                with gr.Row():
+                    with gr.Column():
+                        outs1 = [gr.Image(label="Output Image"), gr.Text(label="Generation results")]
+                        outs2 = [gr.Text(label="Logs")]
+                        outs3 = [gr.Text(label="nvidia-smi")]
+                        b1 = gr.Button("Generate!")
+                        b2 = gr.Button("Print logs")
+                        b3 = gr.Button("nvidia-smi")
+                    with gr.Column():
+                        with gr.Box():
+                            b1.click(generate_img2img, inputs=[
+                                gr.Image(tool="sketch", type="pil", label="Initial image with a mask"),
+                                gr.Text(label="Your Prompt"),
+                                gr.Slider(0, 1, value=0.75, label="Generated image strength"),
+                                gr.Slider(1, 200, value=50, label="Sampling Steps"),
+                                gr.Slider(1, 100, step=1, label="Number of images"),
+                                gr.Slider(1, 100, step=1, label="Batch size"),
+                                gr.Slider(64, 4096, value=512, step=64, label="Width"),
+                                gr.Slider(64, 4096, value=512, step=64, label="Height"),
+                                gr.Slider(0, 50, value=7.5, step=0.1, label="Guidance scale"),
+                                gr.Slider(0, 1, step=0.01, label="DDIM sampling ETA"),
+                                gr.Slider(1, 2, value=1, step=1, label="U-Net batch size"),
+                                gr.Radio(["cuda", "cpu"], value="cuda", label="Device"),
+                                gr.Text(label="Seed"),
+                                gr.Text(value=args.outputs_path, label="Outputs path"),
+                                gr.Radio(["png", "jpg"], value='png', label="Image format"),
+                                gr.Checkbox(value=True, label="Turbo mode (better leave this on)"),
+                                gr.Checkbox(label="Full precision mode (practically does nothing)"),
+                                gr.Radio(
+                                    ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
+                                    value="ddim", label="Sampler"),
+                                gr.Slider(1, 100, value=100, step=1,
+                                          label="%, VRAM usage limiter (100 means max speed)"),
+                                False,
+                            ], outputs=outs1)
+                            b2.click(get_logs, inputs=[], outputs=outs2)
+                            b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
     demo.launch(share=True)

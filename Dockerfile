@@ -16,7 +16,7 @@ RUN eval "$($HOME/miniconda/bin/conda shell.bash hook)" \
  && cd /root/stable-diffusion \
  && conda env create -f environment.yaml \
  && conda activate ldm \
- && pip install gradio==3.1.7
+ && pip install --upgrade gradio
 
 VOLUME /root/.cache
 VOLUME /data
@@ -34,4 +34,4 @@ RUN ln -s /data /root/stable-diffusion/models/ldm/stable-diffusion-v1 \
 WORKDIR /root/stable-diffusion
 
 ENTRYPOINT ["/root/stable-diffusion/docker-bootstrap.sh"]
-CMD python optimizedSD/txt2img_gradio.py
+CMD python optimizedSD/neongradio_ultimate.py

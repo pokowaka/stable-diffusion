@@ -774,7 +774,6 @@ class UNet(DDPM):
             iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)
-
             if mask is not None:
                 # x0_noisy = self.add_noise(mask, torch.tensor([index] * x0.shape[0]).to(self.cdevice))
                 x0_noisy = x0

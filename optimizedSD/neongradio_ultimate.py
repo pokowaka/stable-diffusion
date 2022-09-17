@@ -158,7 +158,7 @@ def generate_img2img(
         image['mask']
         use_mask = True
     except:
-        use_mask=False
+        use_mask = False
     if use_mask:
         mask = load_mask(image['mask'], Height, Width, init_latent.shape[2], init_latent.shape[3], True).to(device)
         mask = mask[0][0].unsqueeze(0).repeat(4, 1, 1).unsqueeze(0)
@@ -227,6 +227,7 @@ def generate_img2img(
                         sampler=sampler,
                         speed_mp=speed_mp,
                         batch_size=batch_size,
+                        init_latent=init_latent if use_mask else None,
                         mask=mask if use_mask else None
                     )
 

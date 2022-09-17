@@ -26,6 +26,7 @@
 ### New update feature: added codeformer.
 To install, clone the repo, then
 ```
+git submodule init
 cd CodeFormer
 python basicsr/setup.py develop
 cd ..
@@ -36,20 +37,20 @@ Below you can see the speed/resolution comparison table.
 <br>
 | resolution 	| steps 	| soft_limiter 	| time          	| vram 	| low vram mode 	|
 |------------	|-------	|----------	    |---------------	|------	|---------------	|
-| 512x512    	| 50    	| 1       	    | 1.5 minutes   	| 4    	| no            	|
-| 512x512    	| 50    	| 1       	    | 36 seconds    	| 8    	| no            	|
-| 512x512    	| 50    	| 1       	    | 30 seconds    	| 10   	| no            	|
-| 512x512    	| 50    	| 1       	    | 15 seconds    	| 24   	| no            	|
-| 1024x1024  	| 50    	| 1       	    | 15 minutes    	| 4    	| no             	|
-| 1024x1024  	| 50    	| 1       	    | 4 minutes     	| 8    	| no            	|
-| 1024x1024  	| 50    	| 1       	    | 3 minutes      	| 10   	| no            	|
-| 1024x1024  	| 50    	| 1       	    | 70 seconds    	| 24   	| no            	|
-| 2048x2048  	| 50    	| 1      	    | 25 minutes       	| 8   	| no            	|
-| 2048x2048  	| 50    	| 1      	    | 20 minutes       	| 10   	| no            	|
-| 2048x2048  	| 50    	| 1       	    | 15 minutes 	    | 24   	| no            	|
-| 512x4096   	| 50    	| 1       	    | 2 minutes     	| 24   	| no            	|
-| 3840x2176  	| 50     	| 1       	    | 40 minutes    	| 24   	| no             	|
-| 3200x3200  	| 50     	| 1       	    | 60 minutes    	| 24   	| no             	|
+| 512x512    	| 50    	| 100%     	    | 1.5 minutes   	| 4    	| no            	|
+| 512x512    	| 50    	| 100%     	    | 36 seconds    	| 8    	| no            	|
+| 512x512    	| 50    	| 100%     	    | 30 seconds    	| 10   	| no            	|
+| 512x512    	| 50    	| 100%     	    | 15 seconds    	| 24   	| no            	|
+| 1024x1024  	| 50    	| 100%     	    | 15 minutes    	| 4    	| no             	|
+| 1024x1024  	| 50    	| 100%     	    | 4 minutes     	| 8    	| no            	|
+| 1024x1024  	| 50    	| 100%     	    | 3 minutes      	| 10   	| no            	|
+| 1024x1024  	| 50    	| 100%     	    | 70 seconds    	| 24   	| no            	|
+| 2048x2048  	| 50    	| 100%    	    | 25 minutes       	| 8   	| no            	|
+| 2048x2048  	| 50    	| 100%    	    | 20 minutes       	| 10   	| no            	|
+| 2048x2048  	| 50    	| 100%     	    | 15 minutes 	    | 24   	| no            	|
+| 512x4096   	| 50    	| 100%     	    | 2 minutes     	| 24   	| no            	|
+| 3840x2176  	| 50     	| 100%     	    | 40 minutes    	| 24   	| no             	|
+| 3200x3200  	| 50     	| 100%     	    | 60 minutes    	| 24   	| no             	|
 <br>
 
 gpus used: gtx 1050 ti, rtx 3070, colab gpu, rtx 3090

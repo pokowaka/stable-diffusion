@@ -16,8 +16,7 @@ Rename it to `model.ckpt`
 
 Put the `model.ckpt` file to `StableDiffusionGui\_internal\stable_diffusion\models\ldm\stable-diffusion-v1`
 
-run the `2) download weights if not exist.bat` file to check if the weights are place in the right location.
-
+run the `2) download weights if not exist.bat` file to check if the weights are placed in the right location.
 
 also install git if not installed
 https://git-scm.com/downloads
@@ -41,20 +40,21 @@ file. It should produce the output as in the screenshot.
 `
 PEACASSO_GUI) run peacasso GUI.bat
 `
+It will launch a web interface on https://127.0.0.1:8080
 
-<br> Utilizes the peacasso gui, which looks like this:
+See more details [here](https://github.com/neonsecret/neonpeacasso)
+
+<br> You will see the peacasso gui, which looks like this:
 
 <img src="assets/tutorial_imgs/peacasso.png" alt=""/>
 
 ### Step 4.2
 Each file explained:
-
 ``` SD_FAST) run vanilla txt2img.bat ``` is used to run the txt2img gradio interface. after double-clicking it, go to step 5.
 
 ```SD_FAST) run vanilla img2img.bat``` is used to run the img2img gradio interface. after double-clicking it, go to step 5.
 
-```SD_FAST) run vanilla img2img inpainting.bat``` is used to run the img2img inpainting gradio interface. after double-clicking it, go to step 5.
-
+```SD_FAST) run vanilla img2img inpainting.bat``` is used to run the img2img inpainting gradio interface. After double-clicking it, go to step 5.
 <br> If you are limited by resources or want to generate bigger-resolution images, go to step 4.3.
 
 ### Step 4.3
@@ -89,3 +89,5 @@ Though I think it's intuitive, I will explain some of the params:
 Other params are better to be left as-is.
 
 <img src="assets/tutorial_imgs/step 7.jpg" alt=""/>
+
+If you have any questions, leave a comment [here](https://www.reddit.com/r/StableDiffusion/comments/xeuipj/introducing_new_optimized_ui_with_samplers/)

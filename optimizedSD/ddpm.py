@@ -610,9 +610,9 @@ class UNet(DDPM):
         return samples
 
     def q_sample(self, x_start, t, noise=None):
-        noise = default(noise, lambda: torch.randn_like(x_start))
-        return (extract_into_tensor(self.sqrt_alphas_cumprod, t, x_start.shape) * x_start +
-                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape) * noise)
+        noise = default(noise, lambda: torch.randn_like(x_start)).to(x_start.device)
+        return (extract_into_tensor(self.sqrt_alphas_cumprod.to(x_start.device), t.to(x_start.device), x_start.shape) * x_start +
+                extract_into_tensor(self.sqrt_one_minus_alphas_cumprod.to(x_start.device), t.to(x_start.device), x_start.shape) * noise)
 
     @torch.no_grad()
     def plms_sampling(self, cond, b, img,
@@ -639,7 +639,7 @@ class UNet(DDPM):
 
             if mask is not None:
                 assert x0 is not None
-                img_orig = self.q_sample(x0, ts)  # TODO: deterministic forward pass?
+                img_orig = self.q_sample(x0, ts).to(img.device)
                 img = img_orig * mask + (1. - mask) * img
                 del img_orig
 
@@ -770,8 +770,7 @@ class UNet(DDPM):
         iterator = tqdm(time_range, desc='Decoding image', total=total_steps)
         x_dec = x_latent
         for i, step in enumerate(iterator):
-            ts = torch.full((t_start,), step, device=x_latent.device, dtype=torch.long)
-            x0 = init_latent if init_latent is not None else self.q_sample(init_latent, ts)
+            x0 = init_latent if init_latent is not None else torch.randn_like(x_dec)
             iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)

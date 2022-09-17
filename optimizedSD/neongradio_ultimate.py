@@ -119,8 +119,10 @@ def generate_img2img(
         speed_mp,
 ):
     logging.info(f"prompt: {prompt}, W: {Width}, H: {Height}")
-
-    init_image = load_img(image['image'], Height, Width).to(device)
+    try:
+        init_image = load_img(image['image'], Height, Width).to(device)
+    except:
+        init_image = load_img(image, Height, Width).to(device)
     model.unet_bs = unet_bs
     model.turbo = turbo
     model.cdevice = device
@@ -600,7 +602,6 @@ if __name__ == '__main__':
                                     value="ddim", label="Sampler"),
                                 gr.Slider(1, 100, value=100, step=1,
                                           label="%, VRAM usage limiter (100 means max speed)"),
-                                False,
                             ], outputs=outs1)
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)

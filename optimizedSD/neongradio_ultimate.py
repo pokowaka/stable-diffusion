@@ -9,18 +9,6 @@ if not os.path.exists("CodeFormer/"):
     os.chdir("..")
     print("Installation successful")
 
-with os.scandir("CodeFormer/") as it:
-    if not any(it):
-        os.rmdir("CodeFormer/")
-        print("Installing CodeFormer..")
-        git.Repo.clone_from("https://github.com/sczhou/CodeFormer/", "CodeFormer")
-        os.chdir("CodeFormer")
-        os.system("python basicsr/setup.py develop")
-        os.chdir("..")
-        print("Installation successful")
-
-
-
 sys.path.append('CodeFormer/')
 sys.path.append('../CodeFormer/')
 
@@ -671,7 +659,7 @@ if __name__ == '__main__':
         with gr.Tab("txt2img"):
             with gr.Column():
                 gr.Markdown("# Generate images from text (neonsecret's adjustments)")
-                gr.Markdown("### Press 'print logs' button to get the model output logs")
+                gr.Markdown("### Press 'generation status' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
                         out_image = gr.Image(label="Output Image")
@@ -681,7 +669,7 @@ if __name__ == '__main__':
                         b1 = gr.Button("Generate!")
                         b4 = gr.Button("Face correction")
                         b5 = gr.Button("Upscale 2x")
-                        b2 = gr.Button("print logs")
+                        b2 = gr.Button("generation status")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
@@ -714,7 +702,7 @@ if __name__ == '__main__':
         with gr.Tab("img2img"):
             with gr.Column():
                 gr.Markdown("# Generate images from images (neonsecret's adjustments)")
-                gr.Markdown("### Press 'print logs' button to get the model output logs")
+                gr.Markdown("### Press 'generation status' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
                         out_image2 = gr.Image(label="Output Image")
@@ -724,7 +712,7 @@ if __name__ == '__main__':
                         b1 = gr.Button("Generate!")
                         b4 = gr.Button("Face correction")
                         b5 = gr.Button("Upscale 2x")
-                        b2 = gr.Button("Print logs")
+                        b2 = gr.Button("generation status")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
@@ -759,7 +747,7 @@ if __name__ == '__main__':
         with gr.Tab("img2img inapint"):
             with gr.Column():
                 gr.Markdown("# Generate images from images (with a mask) (neonsecret's adjustments)")
-                gr.Markdown("### Press 'print logs' button to get the model output logs")
+                gr.Markdown("### Press 'generation status' button to get the model output logs")
                 with gr.Row():
                     with gr.Column():
                         out_image3 = gr.Image(label="Output Image")
@@ -769,7 +757,7 @@ if __name__ == '__main__':
                         b1 = gr.Button("Generate!")
                         b4 = gr.Button("Face correction")
                         b5 = gr.Button("Upscale 2x")
-                        b2 = gr.Button("Print logs")
+                        b2 = gr.Button("generation status")
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():

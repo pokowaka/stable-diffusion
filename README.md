@@ -1,4 +1,4 @@
-# Update: v1.0.5 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers (only in gradio)
+# Update: v1.0.5 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers and CodeFormer and Upscalers (only in gradio)
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">
@@ -10,9 +10,9 @@
     </a>
 </p>
 
-[comment]: <> (## THE GUI IS OUT <br>)
+## THE GUI IS OUT <br>
 
-[comment]: <> (See [GUI Usage tutorial for dummies]&#40;GUI_TUTORIAL.md&#41;)
+See [GUI Usage tutorial for dummies](GUI_TUTORIAL.md)
 
 ## The hlky's webui version [is out](https://github.com/neonsecret/stable-diffusion-webui)
 

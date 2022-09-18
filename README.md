@@ -23,14 +23,10 @@
 # The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
 
 ### Warning: this requires gradio >= 3.3, be sure to install it or update it.
-### New update feature: added codeformer.
-To install, clone the repo, then
-```
-git submodule init
-cd CodeFormer
-python basicsr/setup.py develop
-cd ..
-```
+### New update feature: added codeformer, will install itself automatically
+
+To keep up with the newest updates, make sure to run the `pip install --upgrade -r requirements.txt` to get all the newest dependencies
+
 ## The superfast and low-vram mode have been updated. The latest results are: 2048x2048 on 8 gb vram and 3200x3200 on 24 gb.
 
 Below you can see the speed/resolution comparison table.

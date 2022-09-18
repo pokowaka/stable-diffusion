@@ -1,6 +1,13 @@
 import os
 import sys
-
+import git
+if not os.path.exists("CodeFormer/"):
+    print("Installing CodeFormer..")
+    git.Repo.clone_from("https://github.com/sczhou/CodeFormer/", "CodeFormer")
+    os.chdir("CodeFormer")
+    os.system("python basicsr/setup.py develop")
+    os.chdir("..")
+    print("Installation successful")
 sys.path.append('CodeFormer/')
 sys.path.append('../CodeFormer/')
 

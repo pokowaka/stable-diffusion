@@ -8,6 +8,19 @@ if not os.path.exists("CodeFormer/"):
     os.system("python basicsr/setup.py develop")
     os.chdir("..")
     print("Installation successful")
+
+with os.scandir("CodeFormer/") as it:
+    if not any(it):
+        os.rmdir("CodeFormer/")
+        print("Installing CodeFormer..")
+        git.Repo.clone_from("https://github.com/sczhou/CodeFormer/", "CodeFormer")
+        os.chdir("CodeFormer")
+        os.system("python basicsr/setup.py develop")
+        os.chdir("..")
+        print("Installation successful")
+
+
+
 sys.path.append('CodeFormer/')
 sys.path.append('../CodeFormer/')
 
@@ -295,7 +308,8 @@ def generate_img2img(
 
 
 def upscale2x(img):
-    return Image.fromarray(upsampler.enhance(img, outscale=2)[0])
+    img = Image.fromarray(upsampler.enhance(img, outscale=2)[0])
+    return img, f"Upscaled to resolution: {img.size}"
 
 
 def face_restore(img):
@@ -370,8 +384,8 @@ def face_restore(img):
         restored_img = face_helper.paste_faces_to_input_image(
             upsample_img=bg_img, draw_box=draw_box
         )
-
-    return Image.fromarray(restored_img)
+    img = Image.fromarray(restored_img)
+    return img, f"Fixed a face, new img size: {img.size}"
 
 
 def generate_txt2img(
@@ -671,8 +685,8 @@ if __name__ == '__main__':
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
-                            b4.click(face_restore, inputs=[out_image], outputs=[out_image])
-                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image])
+                            b4.click(face_restore, inputs=[out_image], outputs=[out_image, gen_res])
+                            b5.click(upscale2x, inputs=[out_image], outputs=[out_image, gen_res])
                             b1.click(generate_txt2img, inputs=[
                                 gr.Text(label="Your Prompt"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
@@ -714,8 +728,8 @@ if __name__ == '__main__':
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
-                            b4.click(face_restore, inputs=[out_image2], outputs=[out_image2])
-                            b5.click(upscale2x, inputs=[out_image2], outputs=[out_image2])
+                            b4.click(face_restore, inputs=[out_image2], outputs=[out_image2, gen_res2])
+                            b5.click(upscale2x, inputs=[out_image2], outputs=[out_image2, gen_res2])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="editor", type="pil", label="Initial image"),
                                 gr.Text(label="Your Prompt"),
@@ -759,8 +773,8 @@ if __name__ == '__main__':
                         b3 = gr.Button("nvidia-smi")
                     with gr.Column():
                         with gr.Box():
-                            b4.click(face_restore, inputs=[out_image3], outputs=[out_image3])
-                            b5.click(upscale2x, inputs=[out_image3], outputs=[out_image3])
+                            b4.click(face_restore, inputs=[out_image3], outputs=[out_image3, gen_res3])
+                            b5.click(upscale2x, inputs=[out_image3], outputs=[out_image3, gen_res3])
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="sketch", type="pil", label="Initial image with a mask"),
                                 gr.Text(label="Your Prompt"),

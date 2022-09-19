@@ -457,12 +457,13 @@ def generate_img2img_interp(
                     print("memory_final = ", torch.cuda.memory_allocated() / 1e6)
         # all_samples.append(all_time_samples)
 
-    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 12, (Width, Height))
+    all_time_samples = [toImgOpenCV(img) for img in all_time_samples]
+    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 15, all_time_samples[0].shape[1], all_time_samples[0].shape[0])
     for img in all_time_samples:
-        out.write(toImgOpenCV(img))
+        out.write(img)
     out.release()
 
-    return "tempfile.mp4", "yeah here's your video"
+    return "tempfile.mp4", f"yeah here's your video {Width}x{Height}"
 
 
 def generate_double_triple(
@@ -1211,7 +1212,7 @@ if __name__ == '__main__':
                                     value="ddim", label="Sampler"),
                                 gr.Slider(1, 100, value=100, step=1,
                                           label="%, VRAM usage limiter (100 means max speed)"),
-                                gr.Slider(1, 120, value=60, step=1, label="How smooth the video will be"),
+                                gr.Slider(1, 120, value=60, step=1, label="How smooth/slow the video will be"),
                             ], outputs=[out_video, gen_res4])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)

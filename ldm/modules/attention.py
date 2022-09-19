@@ -153,7 +153,6 @@ class SpatialSelfAttention(nn.Module):
 
 @torch.jit.script
 def fused_memory_function(mem_reserved, mem_active, mem_free_cuda, speed_mp, dtype_multiplyer, qshape0, qshape1, qshape2, vshape2):
-    speed_mp = speed_mp / 100 if speed_mp is not None else torch.tensor(1)
     speed_mp = torch.tensor(1) if speed_mp > 1 or speed_mp < 0 else speed_mp
 
     mem_free_total = (mem_free_cuda + mem_reserved - mem_active) * speed_mp
@@ -205,6 +204,7 @@ class CrossAttention(nn.Module):
             mem_reserved = stats['reserved_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
+            speed_mp = speed_mp / 100 if speed_mp is not None else torch.tensor(1)
             chunk_split = fused_memory_function(mem_reserved, mem_active, mem_free_cuda, speed_mp, dtype_multiplyer, q.shape[0], q.shape[1], q.shape[2], v.shape[2])
         else:
             chunk_split = 1

@@ -425,9 +425,9 @@ def generate_img2img_interp(
                         speed_mp=speed_mp
                     )
                     modelFS.to(device)
-                    print("saving frames")
+                    print("decoding frames")
                     all_time_samples = []
-                    for ij in range(n_interpolate_samples):
+                    for ij in tqdm(range(n_interpolate_samples)):
                         temp_all_samples = []
                         for i in range(batch_size):
                             start0_sample = samples_ddim[i].unsqueeze(0)
@@ -456,9 +456,9 @@ def generate_img2img_interp(
                     del x_samples_ddim
                     print("memory_final = ", torch.cuda.memory_allocated() / 1e6)
         # all_samples.append(all_time_samples)
-
+    print("creating a video..")
     all_time_samples = [toImgOpenCV(img) for img in all_time_samples]
-    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 15, all_time_samples[0].shape[1], all_time_samples[0].shape[0])
+    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 15, (all_time_samples[0].shape[1], all_time_samples[0].shape[0]))
     for img in all_time_samples:
         out.write(img)
     out.release()

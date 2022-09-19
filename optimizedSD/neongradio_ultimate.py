@@ -590,7 +590,7 @@ def generate_double_triple(
                 ).to(device)
 
                 samples_ddim = model.sample(
-                    int(img2img_strength * ddim_steps // 2),
+                    int(img2img_strength * ddim_steps),
                     c,
                     z_enc,
                     unconditional_guidance_scale=scale,
@@ -629,7 +629,7 @@ def generate_double_triple(
                     ).to(device)
 
                     samples_ddim = model.sample(
-                        int(img2img_strength * ddim_steps // 2),
+                        int(img2img_strength * ddim_steps),
                         c,
                         z_enc,
                         unconditional_guidance_scale=scale,

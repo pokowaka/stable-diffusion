@@ -177,7 +177,7 @@ class CrossAttention(nn.Module):
         device = x.device
         secondary_device = device if (self.fast_forward and sys.platform != "darwin") else torch.device("cpu")  # macs
         dtype = x.dtype if dtype is None else dtype
-        x = x.to(dtype)
+        x = x.to(dtype, non_blocking=True)
         q_proj = self.to_q(x)
         context = default(context, x)
         k_proj = self.to_k(context)
@@ -194,6 +194,7 @@ class CrossAttention(nn.Module):
             mem_active = stats['active_bytes.all.current']
             mem_reserved = stats['reserved_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
+            mem_free_cuda = int((round(mem_free_cuda/10 ** (len(str(mem_free_cuda)) - 1), 1) + .1) * 10 ** (len(str(mem_free_cuda)) - 1))  # soft memory lies
             mem_free_torch = mem_reserved - mem_active
             mem_free_total = (mem_free_cuda + mem_free_torch) * speed_mp
 
@@ -203,8 +204,9 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * q.shape[2] * 3 * dtype_multiplyer), \
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
+            s_fake = s // 2.5
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            chunk_split = int(((s // mem_free_total) + 1) * 1.3) if s > mem_free_total else 1
+            chunk_split = int(((s // mem_free_total) + 1) * 1.3) if s_fake > mem_free_total else 1
         else:
             chunk_split = 1
 
@@ -214,13 +216,13 @@ class CrossAttention(nn.Module):
         # print("The available memory is \t", mem_free_total, mem_free_total // 1024 // 1024)
         # print(f"Splitting into {chunk_split} chunks")
         for i in range(0, q.shape[1], mp):
-            q, k = q.to(device), k.to(device)
+            q, k = q.to(device, non_blocking=True), k.to(device, non_blocking=True)
             s1 = einsum('b i d, b j d -> b i j', q[:, i:i + mp], k)
-            q, k = q.to(secondary_device), k.to(secondary_device)
+            q, k = q.to(secondary_device, non_blocking=True), k.to(secondary_device, non_blocking=True)
             s1 *= self.scale
             s1 = F.softmax(s1, dim=-1)
-            r1[:, i:i + mp] = einsum('b i j, b j d -> b i d', s1, v).to(secondary_device)
-        r1 = rearrange(r1, '(b h) n d -> b n (h d)', h=h).to(device)
+            r1[:, i:i + mp] = einsum('b i j, b j d -> b i d', s1, v).to(secondary_device, non_blocking=True)
+        r1 = rearrange(r1, '(b h) n d -> b n (h d)', h=h).to(device, non_blocking=True)
         return self.to_out(r1)
 
 

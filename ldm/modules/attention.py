@@ -211,7 +211,6 @@ class CrossAttention(nn.Module):
         del context, x
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q, k, v))
         if sys.platform != "darwin" and device != "cpu":  # means we can't count gpu memory
-            torch.cuda.empty_cache()
             stats = torch.cuda.memory_stats(torch.device(0))
             allocated_bytes = stats['allocated_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
@@ -221,6 +220,7 @@ class CrossAttention(nn.Module):
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             chunk_split = fused_memory_function(mem_free_total, dtype_multiplyer,
                                                 q.shape[0], q.shape[1], q.shape[2], v.shape[2])
+            chunk_split = 1 if chunk_split == 0 else chunk_split
         else:
             chunk_split = 1
 

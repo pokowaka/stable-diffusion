@@ -216,11 +216,12 @@ class CrossAttention(nn.Module):
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
             speed_mp = speed_mp / 100 if speed_mp is not None else torch.tensor(1)
             speed_mp = torch.tensor(1) if speed_mp > 1 or speed_mp < 0 else speed_mp
-            mem_free_total = (mem_free_cuda - allocated_bytes) * 0.97 * speed_mp
+            mem_free_total = abs(mem_free_cuda - allocated_bytes) * 0.97 * speed_mp
+            print(mem_free_total, mem_free_cuda, allocated_bytes)
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             chunk_split = fused_memory_function(mem_free_total, dtype_multiplyer,
                                                 q.shape[0], q.shape[1], q.shape[2], v.shape[2])
-            chunk_split = 1 if chunk_split == 0 else chunk_split
+            chunk_split = 1 if chunk_split <= 0 else chunk_split
         else:
             chunk_split = 1
 

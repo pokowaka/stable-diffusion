@@ -355,14 +355,15 @@ class KDiffusionSampler:
         return self.schedule
 
     def sample(self, S, conditioning, batch_size, shape, verbose, unconditional_guidance_scale,
-               unconditional_conditioning, eta, x_T):
+               unconditional_conditioning, eta, x_T, x_latent=None, mask=None):
         sigmas = self.model_wrap.get_sigmas(S)
-        if x_T is None:
-            x_T = torch.randn(tuple(shape), device=sigmas[0].device)
-        x = x_T * sigmas[0]
+        if mask is not None:
+            x0_noisy = x_T if x_T is not None else torch.randn_like(x_latent)
+            x_latent = x0_noisy * mask + (1. - mask) * x_latent
+        x_latent = x_latent * sigmas[0]
         model_wrap_cfg = CFGDenoiser(self.model_wrap)
 
-        samples_ddim = K.sampling.__dict__[f'sample_{self.schedule}'](model_wrap_cfg, x, sigmas,
+        samples_ddim = K.sampling.__dict__[f'sample_{self.schedule}'](model_wrap_cfg, x_latent, sigmas,
                                                                       extra_args={'cond': conditioning,
                                                                                   'uncond': unconditional_conditioning,
                                                                                   'cond_scale': unconditional_guidance_scale},
@@ -594,7 +595,8 @@ class UNet(DDPM):
             samples = sampler.sample(S=S, conditioning=conditioning, batch_size=batch_size,
                                      shape=shape, verbose=False,
                                      unconditional_guidance_scale=unconditional_guidance_scale,
-                                     unconditional_conditioning=unconditional_conditioning, eta=eta, x_T=x_latent)
+                                     unconditional_conditioning=unconditional_conditioning,
+                                     eta=eta, x_T=x_T, x_latent=x_latent, mask=mask)
 
         # elif sampler == "euler":
         #     cvd = CompVisDenoiser(self.alphas_cumprod)

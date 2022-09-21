@@ -194,7 +194,8 @@ class CrossAttention(nn.Module):
             mem_active = stats['active_bytes.all.current']
             mem_reserved = stats['reserved_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
-            mem_free_cuda = int((round(mem_free_cuda/10 ** (len(str(mem_free_cuda)) - 1), 1) + .1) * 10 ** (len(str(mem_free_cuda)) - 1))  # soft memory lies
+            mem_free_cuda = int((round(mem_free_cuda / 10 ** (len(str(mem_free_cuda)) - 1), 1) + .1) * 10 ** (
+                        len(str(mem_free_cuda)) - 1))  # soft memory lies
             mem_free_torch = mem_reserved - mem_active
             mem_free_total = (mem_free_cuda + mem_free_torch) * speed_mp
 
@@ -204,12 +205,10 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * q.shape[2] * 3 * dtype_multiplyer), \
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
-            s_fake = s // 2.5
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            chunk_split = int(((s // mem_free_total) + 1) * 1.3) if s_fake > mem_free_total else 1
+            chunk_split = int((s / mem_free_total) + 1) if s > mem_free_cuda else 1
         else:
             chunk_split = 1
-
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)
         mp = q.shape[1] // chunk_split
         # print("The operation will need \t", s, s // 1024 // 1024)

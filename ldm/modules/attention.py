@@ -172,7 +172,7 @@ class CrossAttention(nn.Module):
         self.fast_forward = superfastmode
         # self.forward = self.fast_forward if superfastmode else self.slow_forward
 
-    def forward(self, x, speed_mp=None, context=None, mask=None, dtype=None):
+    def forward(self, x, speed_mp=None, context=None, mask=None, dtype=None, aprox_fn=math.ceil):
         h = self.heads
         device = x.device
         secondary_device = device if (self.fast_forward and sys.platform != "darwin") else torch.device("cpu")  # macs
@@ -194,11 +194,9 @@ class CrossAttention(nn.Module):
             mem_active = stats['active_bytes.all.current']
             mem_reserved = stats['reserved_bytes.all.current']
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
-            mem_free_cuda = int((round(mem_free_cuda / 10 ** (len(str(mem_free_cuda)) - 1), 1) + .1) * 10 ** (
-                        len(str(mem_free_cuda)) - 1))  # soft memory lies
             mem_free_torch = mem_reserved - mem_active
-            mem_free_total = (mem_free_cuda + mem_free_torch) * speed_mp
-
+            mem_free_total = (mem_free_cuda + mem_free_torch)
+            mem_free_total = aprox_fn(mem_free_total / 10 ** int(math.log10(mem_free_total)-1)) * (10 ** int(math.log10(mem_free_total)-1)) * speed_mp
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             s1, s2, s3, s4 = (q.shape[0] * q.shape[1] * q.shape[1] * 1.5 * dtype_multiplyer), \
                              (q.shape[0] * (q.shape[1] ** 2) * dtype_multiplyer), \
@@ -207,6 +205,7 @@ class CrossAttention(nn.Module):
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
             chunk_split = int((s / mem_free_total) + 1) if s > mem_free_cuda else 1
+            # print(chunk_split, s, mem_free_cuda, mem_free_total)
         else:
             chunk_split = 1
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)
@@ -243,7 +242,7 @@ class BasicTransformerBlock(nn.Module):
         return checkpoint(self._forward, (x, speed_mp, context), self.parameters(), self.checkpoint)
 
     def _forward(self, x, speed_mp=None, context=None):
-        x = self.attn1(self.norm1(x), speed_mp=speed_mp, dtype=x.dtype) + x
+        x = self.attn1(self.norm1(x), speed_mp=speed_mp, dtype=x.dtype, aprox_fn=math.floor) + x
         x = self.attn2(self.norm2(x), speed_mp=speed_mp, context=context, dtype=x.dtype) + x
         x = self.ff(self.norm3(x)) + x
         return x

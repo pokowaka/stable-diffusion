@@ -204,7 +204,7 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            modifier = 2.5 if fucking_hell else 1
+            modifier = 2.35 if fucking_hell else 1
             chunk_split = int(((s / mem_free_total) + 1) * modifier) if s > mem_free_cuda else 1
             # print(chunk_split, s, mem_free_cuda, mem_free_total)
         else:

@@ -1,4 +1,5 @@
 import math
+import platform
 import sys
 from inspect import isfunction
 
@@ -154,6 +155,7 @@ class SpatialSelfAttention(nn.Module):
 class CrossAttention(nn.Module):
     def __init__(self, query_dim, superfastmode=True, context_dim=None, heads=8, dim_head=64, dropout=0.):
         super().__init__()
+        self.dim_head = 40
         inner_dim = dim_head * heads
         context_dim = default(context_dim, query_dim)
 
@@ -163,16 +165,74 @@ class CrossAttention(nn.Module):
         self.to_q = nn.Linear(query_dim, inner_dim, bias=False)
         self.to_k = nn.Linear(context_dim, inner_dim, bias=False)
         self.to_v = nn.Linear(context_dim, inner_dim, bias=False)
-        self.superfastmode = superfastmode
 
         self.to_out = nn.Sequential(
             nn.Linear(inner_dim, query_dim),
             nn.Dropout(dropout)
         )
         self.fast_forward = superfastmode
-        # self.forward = self.fast_forward if superfastmode else self.slow_forward
+
+    def _maybe_init(self, x):
+        """
+        Initialize the attention operator, if required We expect the head dimension to be exposed here, meaning that x
+        : B, Head, Length
+        """
+        _, M, K = x.shape
+        try:
+            import xformers
+            import xformers.ops
+            self.attention_op = xformers.ops.AttentionOpDispatch(
+                dtype=x.dtype,
+                device=x.device,
+                k=K,
+                attn_bias_type=type(None),
+                has_dropout=False,
+                kv_len=M,
+                q_len=M,
+            ).op
+        except Exception as err:
+            raise Exception(f"Please install xformers with the flash attention / cutlass components or disable it.\n{err}")
+
+    def light_forward(self, x, context=None, mask=None, dtype=None, fucking_hell=False):
+        try:
+            import xformers
+            import xformers.ops
+        except Exception as e:
+            raise ModuleNotFoundError("Please install xformers!", e)
+        q = self.to_q(x)
+        context = default(context, x)
+        k = self.to_k(context)
+        v = self.to_v(context)
+
+        b, _, _ = q.shape
+        q, k, v = map(
+            lambda t: t.unsqueeze(3)
+                .reshape(b, t.shape[1], self.heads, self.dim_head)
+                .permute(0, 2, 1, 3)
+                .reshape(b * self.heads, t.shape[1], self.dim_head)
+                .contiguous(),
+            (q, k, v),
+        )
+
+        # init the attention op, if required, using the proper dimensions
+        self._maybe_init(q)
+
+        # actually compute the attention, what we cannot get enough of
+        out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None, op=self.attention_op)
+        del q, k, v
+
+        # TODO: Use this directly in the attention operation, as a bias
+        out = (
+            out.unsqueeze(0)
+                .reshape(b, self.heads, out.shape[1], self.dim_head)
+                .permute(0, 2, 1, 3)
+                .reshape(b, out.shape[1], self.heads * self.dim_head)
+        )
+        return self.to_out(out)
 
     def forward(self, x, speed_mp=None, context=None, mask=None, dtype=None, fucking_hell=False):
+        if speed_mp:
+            return self.light_forward(x, context=context, mask=mask, dtype=dtype, fucking_hell=fucking_hell)
         h = self.heads
         device = x.device
         secondary_device = device if (self.fast_forward and sys.platform != "darwin") else torch.device("cpu")  # macs
@@ -186,8 +246,6 @@ class CrossAttention(nn.Module):
         del context, x
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> (b h) n d', h=h), (q_proj, k_proj, v_proj))
         del q_proj, k_proj, v_proj
-        speed_mp = speed_mp / 100 if speed_mp is not None else 1
-        speed_mp = 1 if speed_mp > 1 or speed_mp < 0 else speed_mp
         if sys.platform != "darwin" and device != "cpu":  # means we can't count gpu memory
             torch.cuda.empty_cache()
             stats = torch.cuda.memory_stats(device)
@@ -196,7 +254,8 @@ class CrossAttention(nn.Module):
             mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
             mem_free_torch = mem_reserved - mem_active
             mem_free_total = (mem_free_cuda + mem_free_torch)
-            mem_free_total = math.ceil(mem_free_total / 10 ** int(math.log10(mem_free_total)-1)) * (10 ** int(math.log10(mem_free_total)-1)) * speed_mp
+            mem_free_total = math.ceil(mem_free_total / 10 ** int(math.log10(mem_free_total) - 1)) * (
+                    10 ** int(math.log10(mem_free_total) - 1)) * speed_mp
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             s1, s2, s3, s4 = (q.shape[0] * q.shape[1] * q.shape[1] * 1.5 * dtype_multiplyer), \
                              (q.shape[0] * (q.shape[1] ** 2) * dtype_multiplyer), \
@@ -204,8 +263,7 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            modifier = 2.35 if fucking_hell else 1
-            chunk_split = int(((s / mem_free_total) + 1) * modifier) if s > mem_free_cuda else 1
+            chunk_split = int(((s / mem_free_total) + 1) * (2 if fucking_hell else 1)) if s > mem_free_cuda else 1
             # print(chunk_split, s, mem_free_cuda, mem_free_total)
         else:
             chunk_split = 1

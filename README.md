@@ -31,22 +31,22 @@ To keep up with the newest updates, make sure to run the `pip install --upgrade 
 
 Below you can see the speed/resolution comparison table.
 <br>
-| resolution 	| steps 	| soft_limiter 	| time          	| vram 	| low vram mode 	|
+| resolution 	| steps 	| speed_mp   	| time          	| vram 	| low vram mode 	|
 |------------	|-------	|----------	    |---------------	|------	|---------------	|
-| 512x512    	| 50    	| 100%     	    | 1.5 minutes   	| 4    	| no            	|
-| 512x512    	| 50    	| 100%     	    | 31 seconds    	| 8    	| no            	|
-| 512x512    	| 50    	| 100%     	    | 28 seconds    	| 10   	| no            	|
-| 512x512    	| 50    	| 100%     	    | 15 seconds    	| 24   	| no            	|
-| 1024x1024  	| 50    	| 100%     	    | 15 minutes    	| 4    	| no             	|
-| 1024x1024  	| 50    	| 100%     	    | 2.3 minutes     	| 8    	| no            	|
-| 1024x1024  	| 50    	| 100%     	    | 3 minutes      	| 10   	| no            	|
-| 1024x1024  	| 50    	| 100%     	    | 70 seconds    	| 24   	| no            	|
-| 2048x2048  	| 50    	| 100%    	    | 25 minutes       	| 8   	| no            	|
-| 2048x2048  	| 50    	| 100%    	    | 20 minutes       	| 10   	| no            	|
-| 2048x2048  	| 50    	| 100%     	    | 15 minutes 	    | 24   	| no            	|
-| 512x4096   	| 50    	| 100%     	    | 2 minutes     	| 24   	| no            	|
-| 3840x2176  	| 50     	| 100%     	    | 40 minutes    	| 24   	| no             	|
-| 3200x3200  	| 50     	| 100%     	    | 60 minutes    	| 24   	| no             	|
+| 512x512    	| 50    	| default     	| 1.5 minutes   	| 4    	| no            	|
+| 512x512    	| 50    	| default     	| 31 seconds    	| 8    	| no            	|
+| 512x512    	| 50    	| default     	| 28 seconds    	| 10   	| no            	|
+| 512x512    	| 50    	| default     	| 15 seconds    	| 24   	| no            	|
+| 1024x1024  	| 50    	| default     	| 15 minutes    	| 4    	| no             	|
+| 1024x1024  	| 50    	| default     	| 2.3 minutes     	| 8    	| no            	|
+| 1024x1024  	| 50    	| default     	| 3 minutes      	| 10   	| no            	|
+| 1024x1024  	| 50    	| default     	| 70 seconds    	| 24   	| no            	|
+| 2048x2048  	| 50    	| default    	| 25 minutes       	| 8   	| no            	|
+| 2048x2048  	| 50    	| default    	| 20 minutes       	| 10   	| no            	|
+| 2048x2048  	| 50    	| default     	| 15 minutes 	    | 24   	| no            	|
+| 512x4096   	| 50    	| default     	| 2 minutes     	| 24   	| no            	|
+| 3840x2176  	| 50     	| default     	| 40 minutes    	| 24   	| no             	|
+| 3200x3200  	| 50     	| default     	| 60 minutes    	| 24   	| no             	|
 <br>
 
 gpus used: gtx 1050 ti, rtx 3070, colab gpu, rtx 3090

@@ -1,4 +1,4 @@
-# Update: v1.0.6 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers and CodeFormer and Upscalers (only in gradio), with xformers attention support
+# Update: v1.0.6 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers and CodeFormer and Upscalers (only in gradio), with xformers flash attention support
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">
@@ -19,6 +19,8 @@ See [GUI our new 1-click windows app](https://artroom.ai/download-app)
 ## The peacasso GUI version [is out](https://github.com/neonsecret/neonpeacasso)
 
 ## The gradio UI now has every feature on one page. See usage below.
+
+## The flash attention support has arrived! To try it out, `pip install xformers` (only on linux)
 
 # The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
 

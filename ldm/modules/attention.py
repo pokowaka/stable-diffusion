@@ -254,7 +254,7 @@ class CrossAttention(nn.Module):
             mem_free_torch = mem_reserved - mem_active
             mem_free_total = (mem_free_cuda + mem_free_torch)
             mem_free_total = math.ceil(mem_free_total / 10 ** int(math.log10(mem_free_total) - 1)) * (
-                    10 ** int(math.log10(mem_free_total) - 1)) * speed_mp
+                    10 ** int(math.log10(mem_free_total) - 1))
             dtype_multiplyer = 2 if str(dtype) == "torch.float16" else 4
             s1, s2, s3, s4 = (q.shape[0] * q.shape[1] * q.shape[1] * 1.5 * dtype_multiplyer), \
                              (q.shape[0] * (q.shape[1] ** 2) * dtype_multiplyer), \
@@ -262,8 +262,7 @@ class CrossAttention(nn.Module):
                              (q.shape[0] * q.shape[1] * v.shape[2] * 2 * dtype_multiplyer)
             s = int((s1 + s2 + s3 + s4))
             # 4 main operations' needed compute memory: softmax, einsum, another einsum, and r1 allocation memory.
-            chunk_split = int(((s / mem_free_total) + 1) * (2 if fucking_hell else 1)) if s > mem_free_cuda else 1
-            # print(chunk_split, s, mem_free_cuda, mem_free_total)
+            chunk_split = int(((s / mem_free_total) + 1)) * (2 if fucking_hell else 1) if s > mem_free_cuda else 1
         else:
             chunk_split = 1
         r1 = torch.zeros(q.shape[0], q.shape[1], v.shape[2], device=secondary_device)

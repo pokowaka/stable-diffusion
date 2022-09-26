@@ -33,7 +33,7 @@ To keep up with the newest updates, make sure to run the `pip install --upgrade 
 
 Below you can see the speed/resolution comparison table.
 <br>
-| resolution 	| steps 	| speed_mp   	| time          	| vram 	| low vram mode 	|
+| resolution 	| steps 	| speed_mp   	| classic time     	| vram 	| low vram mode 	|
 |------------	|-------	|----------	    |---------------	|------	|---------------	|
 | 512x512    	| 50    	| default     	| 1.5 minutes   	| 4    	| no            	|
 | 512x512    	| 50    	| default     	| 31 seconds    	| 8    	| no            	|

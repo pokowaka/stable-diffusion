@@ -1,5 +1,4 @@
 import math
-import platform
 import sys
 from inspect import isfunction
 
@@ -191,7 +190,8 @@ class CrossAttention(nn.Module):
                 q_len=M,
             ).op
         except Exception as err:
-            raise Exception(f"Please install xformers with the flash attention / cutlass components or disable it.\n{err}")
+            raise Exception(
+                f"Please install xformers with the flash attention / cutlass components or disable it.\n{err}")
 
     def light_forward(self, x, context=None, mask=None, dtype=None, fucking_hell=False):
         try:

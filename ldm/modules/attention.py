@@ -207,9 +207,9 @@ class CrossAttention(nn.Module):
         b, _, _ = q.shape
         q, k, v = map(
             lambda t: t.unsqueeze(3)
-                .reshape(b, t.shape[1], self.heads, self.dim_head)
+                .reshape(b, t.shape[1], self.heads, int(t.shape.numel() / (b * self.heads * t.shape[1])))
                 .permute(0, 2, 1, 3)
-                .reshape(b * self.heads, t.shape[1], self.dim_head)
+                .reshape(b * self.heads, t.shape[1], int(t.shape.numel() / (b * self.heads * t.shape[1])))
                 .contiguous(),
             (q, k, v),
         )
@@ -221,12 +221,11 @@ class CrossAttention(nn.Module):
         out = xformers.ops.memory_efficient_attention(q, k, v, attn_bias=None, op=self.attention_op)
         del q, k, v
 
-        # TODO: Use this directly in the attention operation, as a bias
         out = (
             out.unsqueeze(0)
-                .reshape(b, self.heads, out.shape[1], self.dim_head)
+                .reshape(b, self.heads, out.shape[1], int(out.shape.numel() / (b * self.heads * out.shape[1])))
                 .permute(0, 2, 1, 3)
-                .reshape(b, out.shape[1], self.heads * self.dim_head)
+                .reshape(b, out.shape[1], int(out.shape.numel() / (b * out.shape[1])))
         )
         return self.to_out(out)
 
@@ -297,11 +296,11 @@ class BasicTransformerBlock(nn.Module):
         self.norm3 = nn.LayerNorm(dim)
         self.checkpoint = checkpoint
 
-    def forward(self, x, speed_mp=None, context=None):
-        return checkpoint(self._forward, (x, speed_mp, context), self.parameters(), self.checkpoint)
+    def forward(self, x, speed_mp=None, context=None, fucking_hell=False):
+        return checkpoint(self._forward, (x, speed_mp, context, fucking_hell), self.parameters(), self.checkpoint)
 
-    def _forward(self, x, speed_mp=None, context=None):
-        x = self.attn1(self.norm1(x), speed_mp=speed_mp, dtype=x.dtype, fucking_hell=True) + x
+    def _forward(self, x, speed_mp=None, context=None, fucking_hell=False):
+        x = self.attn1(self.norm1(x), speed_mp=speed_mp, dtype=x.dtype, fucking_hell=fucking_hell) + x
         x = self.attn2(self.norm2(x), speed_mp=speed_mp, context=context, dtype=x.dtype) + x
         x = self.ff(self.norm3(x)) + x
         return x
@@ -348,7 +347,7 @@ class SpatialTransformer(nn.Module):
         x = self.proj_in(x)
         x = rearrange(x, 'b c h w -> b (h w) c')
         for block in self.transformer_blocks:
-            x = block(x, speed_mp=speed_mp, context=context)
+            x = block(x, speed_mp=speed_mp, context=context, fucking_hell=True)
         x = rearrange(x, 'b (h w) c -> b c h w', h=h, w=w)
         x = self.proj_out(x)
         return x + x_in

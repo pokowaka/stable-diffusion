@@ -1,4 +1,4 @@
-# Update: v1.0.5 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers and CodeFormer and Upscalers (only in gradio)
+# Update: v1.0.6 even superfaster superbigger-res updated ultimate GUI mode edition, with k_diffusion samplers and CodeFormer and Upscalers (only in gradio), with xformers attention support
 
 <h1 align="center">Optimized Stable Diffusion</h1>
 <p align="center">

@@ -51,6 +51,8 @@ from basicsr.utils.realesrgan_utils import RealESRGANer
 from basicsr.utils.registry import ARCH_REGISTRY
 from torchvision.transforms.functional import normalize
 
+
+
 transformers_logging.set_verbosity_error()
 
 mimetypes.init()
@@ -773,6 +775,7 @@ def face_restore(img):
 
 def generate_txt2img(
         prompt,
+        negative_prompt,
         ddim_steps,
         n_iter,
         batch_size,
@@ -837,7 +840,7 @@ def generate_txt2img(
                     modelCS.to(device)
                     uc = None
                     if scale != 1.0:
-                        uc = modelCS.get_learned_conditioning(batch_size * [""])
+                        uc = modelCS.get_learned_conditioning(batch_size * [negative_prompt if negative_prompt is not None else ""])
                     if isinstance(prompts, tuple):
                         prompts = list(prompts)
 
@@ -1081,6 +1084,7 @@ if __name__ == '__main__':
                             b5.click(upscale2x, inputs=[out_image], outputs=[out_image, gen_res])
                             b1.click(generate_txt2img, inputs=[
                                 gr.Text(label="Your Prompt"),
+                                gr.Text(label="Your Negative Prompt"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
                                 gr.Slider(1, 100, step=1, label="Number of images"),
                                 gr.Slider(1, 100, step=1, label="Batch size"),

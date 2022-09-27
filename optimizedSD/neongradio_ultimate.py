@@ -1102,7 +1102,7 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="plms", label="Sampler"),
-                                gr.Checkbox(value=True, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image, gen_res])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=[outs3])
@@ -1146,7 +1146,7 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=True, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image2, gen_res2])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
@@ -1190,7 +1190,7 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=True, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image3, gen_res3])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
@@ -1230,7 +1230,7 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=True, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
                                 gr.Slider(1, 120, value=60, step=1, label="How smooth/slow the video will be"),
                             ], outputs=[out_video, gen_res4])
                             b2.click(get_logs, inputs=[], outputs=outs2)
@@ -1273,7 +1273,7 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="plms", label="Sampler"),
-                                gr.Checkbox(value=True, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
                                 gr.Slider(2, 3, value=2, step=1,
                                           label="Neural scaling factor, 3 will take much longer"),
                             ], outputs=[out_image, gen_res])

@@ -4,6 +4,7 @@ import math
 import os
 import pathlib
 import random
+import subprocess
 import sys
 import time
 from contextlib import nullcontext
@@ -13,6 +14,7 @@ import cv2
 import git
 import numpy as np
 import pandas as pd
+import gradio as gr
 
 if not os.path.exists("pytorch3d-lite/"):
     print("Installing pytorch3d-lite..")
@@ -30,15 +32,10 @@ import torchvision.transforms.functional as TF
 from IPython import display
 from PIL import Image
 from einops import rearrange, repeat
-from helpers import DepthModel, sampler_fn
-from k_diffusion.external import CompVisDenoiser
 from pytorch_lightning import seed_everything
 from skimage.exposure import match_histograms
 from torch import autocast
 from torchvision.utils import make_grid
-
-from ldm.models.diffusion.ddim import DDIMSampler
-from ldm.models.diffusion.plms import PLMSSampler
 
 device = torch.device(0)
 
@@ -163,8 +160,8 @@ def prepare_mask(mask_input, mask_shape, mask_brightness_adjust=1.0, mask_contra
     mask = np.expand_dims(mask, axis=0)
     mask = torch.from_numpy(mask)
 
-    if args.invert_mask:
-        mask = ((mask - 0.5) * -1) + 0.5
+    # if invert_mask:
+    #     mask = ((mask - 0.5) * -1) + 0.5
 
     mask = np.clip(mask, 0, 1)
     return mask
@@ -300,26 +297,33 @@ def transform_image_3d(prev_img_cv2, depth_tensor, rot_mat, translate, anim_args
     return result
 
 
-def inner_generate(return_latent=False, return_sample=False, return_c=False):
+def inner_generate(args, return_latent=False, return_sample=False, return_c=False):
     seed_everything(args.seed)
     os.makedirs(args.outdir, exist_ok=True)
+    model.unet_bs = 1
+    model.turbo = True
+    model.cdevice = device
+    modelCS.cond_stage_model.device = device
+    init_image = args.init_image
+    if device != "cpu":
+        model.half()
+        modelCS.half()
+        modelFS.half()
+        init_image = init_image.half()
 
-    sampler = PLMSSampler(model) if args.sampler == 'plms' else DDIMSampler(model)
-    model_wrap = CompVisDenoiser(model)
     batch_size = args.n_samples
     prompt = args.prompt
     assert prompt is not None
     data = [batch_size * [prompt]]
     precision_scope = autocast if args.precision == "autocast" else nullcontext
-
+    modelFS.to(device)
     init_latent = None
     mask_image = None
-    init_image = None
     if args.init_latent is not None:
         init_latent = args.init_latent
     elif args.init_sample is not None:
         with precision_scope("cuda"):
-            init_latent = model.get_first_stage_encoding(model.encode_first_stage(args.init_sample))
+            init_latent = modelFS.get_first_stage_encoding(modelFS.encode_first_stage(args.init_sample))
     elif args.use_init and args.init_image != None and args.init_image != '':
         init_image, mask_image = load_img(args.init_image,
                                           shape=(args.W, args.H),
@@ -327,8 +331,8 @@ def inner_generate(return_latent=False, return_sample=False, return_c=False):
         init_image = init_image.to(device)
         init_image = repeat(init_image, '1 ... -> b ...', b=batch_size)
         with precision_scope("cuda"):
-            init_latent = model.get_first_stage_encoding(
-                model.encode_first_stage(init_image))  # move to latent space
+            init_latent = init_latent = modelFS.get_first_stage_encoding(
+                modelFS.encode_first_stage(init_image))  # move to latent space
 
     if not args.use_init and args.strength > 0 and args.strength_0_no_init:
         print("\nNo init image, but strength > 0. Strength has been auto set to 0, since use_init is False.")
@@ -337,164 +341,156 @@ def inner_generate(return_latent=False, return_sample=False, return_c=False):
 
     # Mask functions
     if args.use_mask:
-        assert args.mask_file is not None or mask_image is not None, "use_mask==True: An mask image is required for a mask. Please enter a mask_file or use an init image with an alpha channel"
+        assert args.mask_file is not None or mask_image is not None, "use_mask==True: An mask image is required for a " \
+                                                                     "mask. Please enter a mask_file or use an init " \
+                                                                     "image with an alpha channel "
         assert args.use_init, "use_mask==True: use_init is required for a mask"
         assert init_latent is not None, "use_mask==True: An latent init image is required for a mask"
 
-        mask = prepare_mask(args.mask_file if mask_image is None else mask_image,
-                            init_latent.shape,
-                            args.mask_contrast_adjust,
-                            args.mask_brightness_adjust)
+        mask = torch.tensor(prepare_mask(args.mask_file if mask_image is None else mask_image,
+                                         init_latent.shape,
+                                         args.mask_contrast_adjust,
+                                         args.mask_brightness_adjust))
 
         if (torch.all(mask == 0) or torch.all(mask == 1)) and args.use_alpha_as_mask:
             raise Warning(
-                "use_alpha_as_mask==True: Using the alpha channel from the init image as a mask, but the alpha channel is blank.")
+                "use_alpha_as_mask==True: Using the alpha channel from the init image as a mask, but the alpha "
+                "channel is blank.")
 
         mask = mask.to(device)
         mask = repeat(mask, '1 ... -> b ...', b=batch_size)
     else:
         mask = None
 
+    if device != "cpu":
+        mem = torch.cuda.memory_allocated() / 1e6
+        modelFS.to("cpu")
+        while torch.cuda.memory_allocated() / 1e6 >= mem:
+            time.sleep(1)
+
     t_enc = int((1.0 - args.strength) * args.steps)
-
-    # Noise schedule for the k-diffusion samplers (used for masking)
-    k_sigmas = model_wrap.get_sigmas(args.steps)
-    k_sigmas = k_sigmas[len(k_sigmas) - t_enc - 1:]
-
-    if args.sampler in ['plms', 'ddim']:
-        sampler.make_schedule(ddim_num_steps=args.steps, ddim_eta=args.ddim_eta, ddim_discretize='fill',
-                              verbose=False)
-
-    callback = make_callback(sampler_name=args.sampler,
-                             dynamic_threshold=args.dynamic_threshold,
-                             static_threshold=args.static_threshold,
-                             mask=mask,
-                             init_latent=init_latent,
-                             sigmas=k_sigmas,
-                             sampler=sampler)
-
     results = []
     with torch.no_grad():
         with precision_scope("cuda"):
-            with model.ema_scope():
-                for prompts in data:
-                    uc = None
-                    if args.scale != 1.0:
-                        uc = model.get_learned_conditioning(batch_size * [""])
-                    if isinstance(prompts, tuple):
-                        prompts = list(prompts)
-                    c = model.get_learned_conditioning(prompts)
-                    if args.init_c != None:
-                        c = args.init_c
-                    if args.sampler in ["klms", "dpm2", "dpm2_ancestral", "heun", "euler", "euler_ancestral"]:
-                        samples = sampler_fn(
-                            c=c,
-                            uc=uc,
-                            args=args,
-                            model_wrap=model_wrap,
-                            init_latent=init_latent,
-                            t_enc=t_enc,
-                            device=device,
-                            cb=callback)
-                    else:
-                        # args.sampler == 'plms' or args.sampler == 'ddim':
-                        if init_latent is not None and args.strength > 0:
-                            z_enc = sampler.stochastic_encode(init_latent,
-                                                              torch.tensor([t_enc] * batch_size).to(device))
-                        else:
-                            z_enc = torch.randn([args.n_samples, args.C, args.H // args.f, args.W // args.f],
-                                                device=device)
-                        if args.sampler == 'ddim':
-                            samples = sampler.decode(z_enc,
-                                                     c,
-                                                     t_enc,
-                                                     unconditional_guidance_scale=args.scale,
-                                                     unconditional_conditioning=uc,
-                                                     img_callback=callback)
-                        elif args.sampler == 'plms':  # no "decode" function in plms, so use "sample"
-                            shape = [args.C, args.H // args.f, args.W // args.f]
-                            samples, _ = sampler.sample(S=args.steps,
-                                                        conditioning=c,
-                                                        batch_size=args.n_samples,
-                                                        shape=shape,
-                                                        verbose=False,
-                                                        unconditional_guidance_scale=args.scale,
-                                                        unconditional_conditioning=uc,
-                                                        eta=args.ddim_eta,
-                                                        x_T=z_enc,
-                                                        img_callback=callback)
-                        else:
-                            raise Exception(f"Sampler {args.sampler} not recognised.")
+            for prompts in data:
+                uc = None
+                if args.scale != 1.0:
+                    uc = modelCS.get_learned_conditioning(batch_size * [""])
+                if isinstance(prompts, tuple):
+                    prompts = list(prompts)
+                c = modelCS.get_learned_conditioning(prompts)
+                if args.init_c is not None:
+                    c = args.init_c
 
-                    if return_latent:
-                        results.append(samples.clone())
+                if device != "cpu":
+                    mem = torch.cuda.memory_allocated() / 1e6
+                    modelCS.to("cpu")
+                    while torch.cuda.memory_allocated() / 1e6 >= mem:
+                        time.sleep(1)
 
-                    x_samples = model.decode_first_stage(samples)
-                    if return_sample:
-                        results.append(x_samples.clone())
+                z_enc = model.stochastic_encode(
+                    init_latent, torch.tensor([t_enc] * batch_size).to(device), args.seed, args.ddim_eta, args.ddim_steps
+                )
+                # decode it
+                samples = model.sample(
+                    t_enc,
+                    c,
+                    z_enc,
+                    unconditional_guidance_scale=args.scale,
+                    unconditional_conditioning=uc,
+                    sampler=args.sampler,
+                    speed_mp=None,
+                    batch_size=batch_size,
+                    x_T=init_latent,
+                )
 
-                    x_samples = torch.clamp((x_samples + 1.0) / 2.0, min=0.0, max=1.0)
+                if return_latent:
+                    results.append(samples.clone())
 
-                    if return_c:
-                        results.append(c.clone())
+                x_samples = modelFS.decode_first_stage(samples)
+                if return_sample:
+                    results.append(x_samples.clone())
 
-                    for x_sample in x_samples:
-                        x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
-                        image = Image.fromarray(x_sample.astype(np.uint8))
-                        results.append(image)
+                x_samples = torch.clamp((x_samples + 1.0) / 2.0, min=0.0, max=1.0)
+
+                if return_c:
+                    results.append(c.clone())
+
+                for x_sample in x_samples:
+                    x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
+                    image = Image.fromarray(x_sample.astype(np.uint8))
+                    results.append(image)
     return results
 
 
-def DeforumAnimArgs():
+def DeforumAnimArgs(enable_animation_mode, max_frames, border, angle, zoom,
+                    translation_x, translation_y, translation_z,
+                    rotation_3d_x, rotation_3d_y, rotation_3d_z,
+                    noise_schedule, strength_schedule, contrast_schedule,
+                    color_coherence, diffusion_cadence, use_depth_warping,
+                    midas_weight, near_plane, far_plane, fov,
+                    padding_mode, sampling_mode, save_depth_maps, video_init_path,
+                    extract_nth_frame, interpolate_key_frames, interpolate_x_frames,
+                    resume_from_timestring, resume_timestring
+                    ):
     # @markdown ####**Animation:**
-    if opt.enable_animation_mode == True:
-        animation_mode = master_args[
-            "animation_mode"]  # @param ['None', '2D', '3D', 'Video Input', 'Interpolation'] {type:'string'}
-        max_frames = master_args["max_frames"]  # @param {type:"number"}
-        border = master_args["border"]  # @param ['wrap', 'replicate'] {type:'string'}
+    if enable_animation_mode:
+        max_frames, border, angle, zoom, translation_x, translation_y, translation_z, rotation_3d_x, rotation_3d_y, \
+        rotation_3d_z, noise_schedule, strength_schedule, contrast_schedule, color_coherence, diffusion_cadence, \
+        use_depth_warping, midas_weight, near_plane, far_plane, fov, padding_mode, sampling_mode, save_depth_maps, \
+        video_init_path, extract_nth_frame, interpolate_key_frames, interpolate_x_frames, resume_from_timestring, \
+        resume_timestring = max_frames, border, angle, zoom, translation_x, translation_y, translation_z, rotation_3d_x, \
+                            rotation_3d_y, rotation_3d_z, noise_schedule, strength_schedule, contrast_schedule, \
+                            color_coherence, diffusion_cadence, use_depth_warping, midas_weight, near_plane, far_plane, \
+                            fov, padding_mode, sampling_mode, save_depth_maps, video_init_path, extract_nth_frame, \
+                            interpolate_key_frames, interpolate_x_frames, resume_from_timestring, resume_timestring
+    # animation_mode = master_args[
+    #     "animation_mode"]  # @param ['None', '2D', '3D', 'Video Input', 'Interpolation'] {type:'string'}
+    # max_frames = master_args["max_frames"]  # @param {type:"number"}
+    # border = master_args["border"]  # @param ['wrap', 'replicate'] {type:'string'}
 
-        # @markdown ####**Motion Parameters:**
-        angle = master_args["angle"]  # @param {type:"string"}
-        zoom = master_args["zoom"]  # @param {type:"string"}
-        translation_x = master_args["translation_x"]  # @param {type:"string"}
-        translation_y = master_args["translation_y"]  # @param {type:"string"}
-        translation_z = master_args["translation_z"]  # @param {type:"string"}
-        rotation_3d_x = master_args["rotation_3d_x"]  # @param {type:"string"}
-        rotation_3d_y = master_args["rotation_3d_y"]  # @param {type:"string"}
-        rotation_3d_z = master_args["rotation_3d_z"]  # @param {type:"string"}
-        noise_schedule = master_args["noise_schedule"]  # @param {type:"string"}
-        strength_schedule = master_args["strength_schedule"]  # @param {type:"string"}
-        contrast_schedule = master_args["contrast_schedule"]  # @param {type:"string"}
+    # @markdown ####**Motion Parameters:**
+    # angle = master_args["angle"]  # @param {type:"string"}
+    # zoom = master_args["zoom"]  # @param {type:"string"}
+    # translation_x = master_args["translation_x"]  # @param {type:"string"}
+    # translation_y = master_args["translation_y"]  # @param {type:"string"}
+    # translation_z = master_args["translation_z"]  # @param {type:"string"}
+    # rotation_3d_x = master_args["rotation_3d_x"]  # @param {type:"string"}
+    # rotation_3d_y = master_args["rotation_3d_y"]  # @param {type:"string"}
+    # rotation_3d_z = master_args["rotation_3d_z"]  # @param {type:"string"}
+    # noise_schedule = master_args["noise_schedule"]  # @param {type:"string"}
+    # strength_schedule = master_args["strength_schedule"]  # @param {type:"string"}
+    # contrast_schedule = master_args["contrast_schedule"]  # @param {type:"string"}
 
-        # @markdown ####**Coherence:**
-        color_coherence = master_args[
-            "color_coherence"]  # @param ['None', 'Match Frame 0 HSV', 'Match Frame 0 LAB', 'Match Frame 0 RGB'] {type:'string'}
-        diffusion_cadence = master_args[
-            "diffusion_cadence"]  # @param ['1','2','3','4','5','6','7','8'] {type:'string'}
+    # @markdown ####**Coherence:**
+    # color_coherence = master_args[
+    #     "color_coherence"]  # @param ['None', 'Match Frame 0 HSV', 'Match Frame 0 LAB', 'Match Frame 0 RGB'] {type:'string'}
+    # diffusion_cadence = master_args[
+    #     "diffusion_cadence"]  # @param ['1','2','3','4','5','6','7','8'] {type:'string'}
+    #
+    # # @markdown #### Depth Warping
+    # use_depth_warping = master_args["use_depth_warping"]  # @param {type:"boolean"}
+    # midas_weight = master_args["midas_weight"]  # @param {type:"number"}
+    # near_plane = master_args["near_plane"]
+    # far_plane = master_args["far_plane"]
+    # fov = master_args["fov"]  # @param {type:"number"}
+    # padding_mode = master_args["padding_mode"]  # @param ['border', 'reflection', 'zeros'] {type:'string'}
+    # sampling_mode = master_args["sampling_mode"]  # @param ['bicubic', 'bilinear', 'nearest'] {type:'string'}
+    # save_depth_maps = master_args["save_depth_maps"]  # @param {type:"boolean"}
+    #
+    # # @markdown ####**Video Input:**
+    # video_init_path = master_args["video_init_path"]  # @param {type:"string"}
+    # extract_nth_frame = master_args["extract_nth_frame"]  # @param {type:"number"}
+    #
+    # # @markdown ####**Interpolation:**
+    # interpolate_key_frames = master_args["interpolate_key_frames"]  # @param {type:"boolean"}
+    # interpolate_x_frames = master_args["interpolate_x_frames"]  # @param {type:"number"}
+    #
+    # # @markdown ####**Resume Animation:**
+    # resume_from_timestring = master_args["resume_from_timestring"]  # @param {type:"boolean"}
+    # resume_timestring = master_args["resume_timestring"]  # @param {type:"string"}
 
-        # @markdown #### Depth Warping
-        use_depth_warping = master_args["use_depth_warping"]  # @param {type:"boolean"}
-        midas_weight = master_args["midas_weight"]  # @param {type:"number"}
-        near_plane = master_args["near_plane"]
-        far_plane = master_args["far_plane"]
-        fov = master_args["fov"]  # @param {type:"number"}
-        padding_mode = master_args["padding_mode"]  # @param ['border', 'reflection', 'zeros'] {type:'string'}
-        sampling_mode = master_args["sampling_mode"]  # @param ['bicubic', 'bilinear', 'nearest'] {type:'string'}
-        save_depth_maps = master_args["save_depth_maps"]  # @param {type:"boolean"}
-
-        # @markdown ####**Video Input:**
-        video_init_path = master_args["video_init_path"]  # @param {type:"string"}
-        extract_nth_frame = master_args["extract_nth_frame"]  # @param {type:"number"}
-
-        # @markdown ####**Interpolation:**
-        interpolate_key_frames = master_args["interpolate_key_frames"]  # @param {type:"boolean"}
-        interpolate_x_frames = master_args["interpolate_x_frames"]  # @param {type:"number"}
-
-        # @markdown ####**Resume Animation:**
-        resume_from_timestring = master_args["resume_from_timestring"]  # @param {type:"boolean"}
-        resume_timestring = master_args["resume_timestring"]  # @param {type:"string"}
     else:
-        # @markdown ####**Still image mode:**
         animation_mode = 'None'  # @param ['None', '2D', '3D', 'Video Input', 'Interpolation'] {type:'string'}
         max_frames = 10  # @param {type:"number"}
         border = 'wrap'  # @param ['wrap', 'replicate'] {type:'string'}
@@ -541,7 +537,7 @@ def DeforumAnimArgs():
     return locals()
 
 
-class DeformAnimKeys():
+class DeformAnimKeys:
     def __init__(self, anim_args):
         self.angle_series = get_inbetweens(parse_key_frames(anim_args.angle))
         self.zoom_series = get_inbetweens(parse_key_frames(anim_args.zoom))
@@ -557,7 +553,7 @@ class DeformAnimKeys():
 
 
 def get_inbetweens(key_frames, integer=False, interp_method='Linear'):
-    key_frame_series = pd.Series([np.nan for a in range(anim_args.max_frames)])
+    key_frame_series = pd.Series([np.nan for a in range(max_frames)])
 
     for i, value in key_frames.items():
         key_frame_series[i] = value
@@ -569,7 +565,7 @@ def get_inbetweens(key_frames, integer=False, interp_method='Linear'):
         interp_method = 'Linear'
 
     key_frame_series[0] = key_frame_series[key_frame_series.first_valid_index()]
-    key_frame_series[anim_args.max_frames - 1] = key_frame_series[key_frame_series.last_valid_index()]
+    key_frame_series[max_frames - 1] = key_frame_series[key_frame_series.last_valid_index()]
     key_frame_series = key_frame_series.interpolate(method=interp_method.lower(), limit_direction='both')
     if integer:
         return key_frame_series.astype(int)
@@ -591,20 +587,21 @@ def parse_key_frames(string, prompt_parser=None):
         raise RuntimeError('Key Frame string not correctly formatted')
     return frames
 
-def DeforumArgs():
 
+def DeforumArgs(
+        W, H, seed, steps, scale, ddim_eta, n_batch, batch_name, seed_behavior, output_path, use_init, strength,
+        init_image, use_mask, use_alpha_as_mask, mask_file
+):
     # @markdown **Image Settings**
-    W = master_args["width"]  # @param
-    H = master_args["height"]  # @param
     W, H = map(lambda x: x - x % 64, (W, H))  # resize to integer multiple of 64
 
     # @markdown **Sampling Settings**
-    seed = master_args["seed"]  # @param
-    sampler = master_args[
-        "sampler"]  # @param ["klms","dpm2","dpm2_ancestral","heun","euler","euler_ancestral","plms", "ddim"]
-    steps = master_args["steps"]  # @param
-    scale = master_args["scale"]  # @param
-    ddim_eta = master_args["ddim_eta"]  # @param
+    # seed = master_args["seed"]  # @param
+    # sampler = master_args[
+    #     "sampler"]  # @param ["klms","dpm2","dpm2_ancestral","heun","euler","euler_ancestral","plms", "ddim"]
+    # steps = master_args["steps"]  # @param
+    # scale = master_args["scale"]  # @param
+    # ddim_eta = master_args["ddim_eta"]  # @param
     dynamic_threshold = None
     static_threshold = None
 
@@ -614,25 +611,24 @@ def DeforumArgs():
     display_samples = True  # @param {type:"boolean"}
 
     # @markdown **Batch Settings**
-    n_batch = master_args["n_batch"]  # @param
-    batch_name = master_args["batch_name"]  # @param {type:"string"}
-    filename_format = master_args[
-        "filename_format"]  # @param ["{timestring}_{index}_{seed}.png","{timestring}_{index}_{prompt}.png"]
-    seed_behavior = master_args["seed_behavior"]  # @param ["iter","fixed","random"]
+    # n_batch = master_args["n_batch"]  # @param
+    # batch_name = master_args["batch_name"]  # @param {type:"string"}
+    # filename_format = master_args[
+    #     "filename_format"]  # @param ["{timestring}_{index}_{seed}.png","{timestring}_{index}_{prompt}.png"]
+    # seed_behavior = master_args["seed_behavior"]  # @param ["iter","fixed","random"]
     make_grid = False  # @param {type:"boolean"}
     grid_rows = 2  # @param
-    outdir = get_output_folder(output_path, batch_name)
+    outdir = output_path + "/" + batch_name
 
     # @markdown **Init Settings**
-    use_init = master_args["use_init"]  # @param {type:"boolean"}
-    strength = master_args["strength"]  # @param {type:"number"}
-    init_image = master_args["init_image"]  # @param {type:"string"}
-    strength_0_no_init = True  # Set the strength to 0 automatically when no init image is used
-    # Whiter areas of the mask are areas that change more
-    use_mask = master_args["use_mask"]  # @param {type:"boolean"}
-    use_alpha_as_mask = master_args["use_alpha_as_mask"]  # use the alpha channel of the init image as the mask
-    mask_file = master_args["mask_file"]  # @param {type:"string"}
-    invert_mask = master_args["invert_mask"]  # @param {type:"boolean"}
+    # use_init = master_args["use_init"]  # @param {type:"boolean"}
+    # strength = master_args["strength"]  # @param {type:"number"}
+    # init_image = master_args["init_image"]  # @param {type:"string"}
+    # strength_0_no_init = True  # Set the strength to 0 automatically when no init image is used
+    # # Whiter areas of the mask are areas that change more
+    # use_mask = master_args["use_mask"]  # @param {type:"boolean"}
+    # use_alpha_as_mask = master_args["use_alpha_as_mask"]  # use the alpha channel of the init image as the mask
+    # mask_file = master_args["mask_file"]  # @param {type:"string"}
     # Adjust mask image, 1.0 is no adjustment. Should be positive numbers.
     mask_brightness_adjust = 1.0  # @param {type:"number"}
     mask_contrast_adjust = 1.0  # @param {type:"number"}
@@ -650,6 +646,7 @@ def DeforumArgs():
 
     return locals()
 
+
 def next_seed(args):
     if args.seed_behavior == 'iter':
         args.seed += 1
@@ -659,8 +656,9 @@ def next_seed(args):
         args.seed = random.randint(0, 2 ** 32)
     return args.seed
 
+
 def render_image_batch(args):
-    args.prompts = {k: f"{v:05d}" for v, k in enumerate(prompts)}
+    prompts = args.prompts
 
     # create output folder for the batch
     os.makedirs(args.outdir, exist_ok=True)
@@ -736,9 +734,10 @@ def render_image_batch(args):
             display.clear_output(wait=True)
             display.display(grid_image)
 
+
 def render_animation(args, anim_args):
     # animations use key framed prompts
-    args.prompts = animation_prompts
+    animation_prompts = args.prompts
 
     # expand key frame strings to values
     keys = DeformAnimKeys(anim_args)
@@ -784,8 +783,7 @@ def render_animation(args, anim_args):
     # load depth model for 3D
     predict_depths = (anim_args.animation_mode == '3D' and anim_args.use_depth_warping) or anim_args.save_depth_maps
     if predict_depths:
-        depth_model = DepthModel(device)
-        depth_model.load_midas(models_path)
+        depth_model = torch.hub.load("intel-isl/MiDaS", "DPT_Hybrid")
         if anim_args.midas_weight < 1.0:
             depth_model.load_adabins()
     else:
@@ -892,10 +890,7 @@ def render_animation(args, anim_args):
 
             # use transformed previous frame as init for current
             args.use_init = True
-            if half_precision:
-                args.init_sample = noised_sample.half().to(device)
-            else:
-                args.init_sample = noised_sample.to(device)
+            args.init_sample = noised_sample.half().to(device)
             args.strength = max(0.0, min(1.0, strength))
 
         # grab prompt for current frame
@@ -931,6 +926,7 @@ def render_animation(args, anim_args):
 
         args.seed = next_seed(args)
 
+
 def render_input_video(args, anim_args):
     # create a folder for the video input frames to live in
     video_in_frame_path = os.path.join(args.outdir, 'inputframes')
@@ -959,9 +955,10 @@ def render_input_video(args, anim_args):
         f"Loading {anim_args.max_frames} input frames from {video_in_frame_path} and saving video frames to {args.outdir}")
     render_animation(args, anim_args)
 
+
 def render_interpolation(args, anim_args):
     # animations use key framed prompts
-    args.prompts = animation_prompts
+    animation_prompts = args.animation_prompts
 
     # create output folder for the batch
     os.makedirs(args.outdir, exist_ok=True)
@@ -1064,25 +1061,53 @@ def render_interpolation(args, anim_args):
 
 
 def generate(
-        prompts,
+        prompt1,
+        prompt2,
+        prompt3,
+        init_image,
         enable_animation_mode,
-        ddim_steps,
-        n_iter,
-        batch_size,
         Width,
         Height,
+        animation_mode,  # [2d, 3d, video input, interpolation]
+        ddim_steps,
+        max_frames,
+        seed_behavior,  # iter, fixed, random
+        strength,
+        batch_size,
         scale,
         ddim_eta,
-        unet_bs,
-        device,
+        border,  # wrap, replicate
         seed,
         outdir,
-        img_format,
-        turbo,
-        full_precision,
         sampler,
-        speed_mp,
-        fps
+        fps,
+        angle,
+        zoom,
+        translation_x,
+        translation_y,
+        translation_z,
+        rotation_3d_x,
+        rotation_3d_y,
+        rotation_3d_z,
+        noise_schedule,
+        strength_schedule,
+        contrast_schedule,
+        color_coherence,
+        diffusion_cadence,
+        use_depth_warping,
+        midas_weight,
+        near_plane,
+        far_plane,
+        fov,
+        padding_mode,
+        sampling_mode,
+        save_depth_maps,
+        video_init_path,
+        extract_nth_frame,
+        interpolate_key_frames,
+        interpolate_x_frames,
+        resume_from_timestring,
+        resume_timestring
 ):
     # Prompt will be put in here: for example:
     """
@@ -1099,36 +1124,93 @@ def generate(
     """
 
     timestring = time.strftime('%Y%m%d%H%M%S')
-    strength = max(0.0, min(1.0, args.strength))
+    strength = max(0.0, min(1.0, strength))
+    args_ = SimpleNamespace(**DeforumArgs(
+        Width,
+        Height,
+        seed,
+        ddim_steps,
+        scale,
+        ddim_eta,
+        batch_size,
+        "your_gens",
+        seed_behavior,
+        outdir,
+        init_image is not None,
+        strength,
+        init_image,
+        False,  # for now
+        False,
+        None
+    ))
+    anim_args_ = SimpleNamespace(**DeforumAnimArgs(
+        animation_mode,
+        max_frames,
+        border,
+        angle,
+        zoom,
+        translation_x,
+        translation_y,
+        translation_z,
+        rotation_3d_x,
+        rotation_3d_y,
+        rotation_3d_z,
+        noise_schedule,
+        strength_schedule,
+        contrast_schedule,
+        color_coherence,
+        diffusion_cadence,
+        use_depth_warping,
+        midas_weight,
+        near_plane,
+        far_plane,
+        fov,
+        padding_mode,
+        sampling_mode,
+        save_depth_maps,
+        video_init_path,
+        extract_nth_frame,
+        interpolate_key_frames,
+        interpolate_x_frames,
+        resume_from_timestring,
+        resume_timestring
+    ))
+
+    args_.prompts = [prompt1, prompt2, prompt3] if not animation_mode else {
+        0: prompt1,
+        33: prompt2,
+        66: prompt3
+    }
 
     if seed == -1:
-        seed = random.randint(0, 2 ** 32 - 1)
-    if not use_init:
-        args.init_image = None
-    if args.sampler == 'plms' and (args.use_init or anim_args.animation_mode != 'None'):
-        print(f"Init images aren't supported with PLMS yet, switching to KLMS")
-        args.sampler = 'klms'
-    if args.sampler != 'ddim':
-        args.ddim_eta = 0
+        args_.seed = random.randint(0, 2 ** 32 - 1)
+    if init_image is not None:
+        args_.init_image = init_image
+    if sampler == 'plms' and ((init_image is not None) or enable_animation_mode):
+        print(f"Init images aren't supported with PLMS yet, switching to DDIM")
+        args_.sampler = 'ddim'
+    if sampler != 'ddim':
+        args_.ddim_eta = 0
 
-    if anim_args.animation_mode == 'None':
-        anim_args.max_frames = 1
-    elif anim_args.animation_mode == 'Video Input':
-        args.use_init = True
+    if animation_mode == 'None':
+        anim_args_.max_frames = 1
+    elif animation_mode == 'Video Input':
+        args_.use_init = True
 
     # clean up unused memory
     gc.collect()
     torch.cuda.empty_cache()
 
     # dispatch to appropriate renderer
-    if anim_args.animation_mode == '2D' or anim_args.animation_mode == '3D':
-        render_animation(args, anim_args)
-    elif anim_args.animation_mode == 'Video Input':
-        render_input_video(args, anim_args)
-    elif anim_args.animation_mode == 'Interpolation':
-        render_interpolation(args, anim_args)
+    args_.animation_mode = animation_mode
+    if animation_mode == '2D' or animation_mode == '3D':
+        render_animation(args_, anim_args_)
+    elif animation_mode == 'Video Input':
+        render_input_video(args_, anim_args_)
+    elif animation_mode == 'Interpolation':
+        render_interpolation(args_, anim_args_)
     else:
-        render_image_batch(args)
+        render_image_batch(args_)
 
     skip_video_for_run_all = False  # @param {type: 'boolean'}
     # @markdown **Manual Settings**
@@ -1136,21 +1218,17 @@ def generate(
     image_path = "./output/out_%05d.png"  # @param {type:"string"}
     mp4_path = "./output/out_%05d.mp4"  # @param {type:"string"}
 
-    if skip_video_for_run_all == True or opt.enable_animation_mode == False:
+    if skip_video_for_run_all == True or enable_animation_mode == False:
         print('Skipping video creation, uncheck skip_video_for_run_all if you want to run it')
     else:
-        import os
-        import subprocess
-        from base64 import b64encode
-
         print(f"{image_path} -> {mp4_path}")
 
         if use_manual_settings:
             max_frames = "200"  # @param {type:"string"}
         else:
-            image_path = os.path.join(args.outdir, f"{args.timestring}_%05d.png")
-            mp4_path = os.path.join(args.outdir, f"{args.timestring}.mp4")
-            max_frames = str(anim_args.max_frames)
+            image_path = os.path.join(outdir, f"{timestring}_%05d.png")
+            mp4_path = os.path.join(outdir, f"{timestring}.mp4")
+            max_frames = str(max_frames)
 
         # make video
         cmd = [
@@ -1175,8 +1253,77 @@ def generate(
         if process.returncode != 0:
             print(stderr)
             raise RuntimeError(stderr)
-
-        mp4 = open(mp4_path, 'rb').read()
-        data_url = "data:video/mp4;base64," + b64encode(mp4).decode()
-        display.display(display.HTML(f'<video controls loop><source src="{data_url}" type="video/mp4"></video>'))
         return mp4_path
+
+
+max_frames = 240
+demo = gr.Blocks()
+with demo:
+    with gr.Tab("txt2img"):
+        with gr.Column():
+            gr.Markdown("# Generate images from text (neonsecret's adjustments)")
+            gr.Markdown("### Press 'generation status' button to get the model output logs")
+            with gr.Row():
+                with gr.Column():
+                    out_image = gr.Image(label="Output Image")
+                    gen_res = gr.Text(label="Generation results")
+                    b1 = gr.Button("Generate!")
+                with gr.Column():
+                    with gr.Box():
+                        b1.click(generate, inputs=[
+                            gr.Text(label="Your Prompt 1"),
+                            gr.Text(label="Your Prompt 2"),
+                            gr.Text(label="Your Prompt 3"),
+                            gr.Image(tool="editor", type="pil", label="Initial image"),
+                            gr.Checkbox(value=True, label="Enable animation mode"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Width"),
+                            gr.Slider(64, 4096, value=512, step=64, label="Height"),
+                            gr.Radio(["2d", "3d", "video input", "interpolation"], value="2d", label="Animation Mode"),
+                            gr.Slider(1, 200, value=50, label="Sampling Steps"),
+                            gr.Slider(1, 240, step=1, label="Max frames"),
+                            gr.Radio(["iter", "fixed", "random"], value="fixed", label="seed_behavior"),
+                            gr.Slider(0, 1, step=0.1, label="Strength"),
+                            gr.Slider(1, 100, step=1, label="Batch size"),
+                            gr.Slider(-25, 25, value=7.5, step=0.1, label="Guidance scale"),
+                            gr.Slider(0, 1, step=0.01, label="DDIM sampling ETA"),
+                            gr.Radio(["wrap", "replicate"], value="wrap", label="Border"),
+                            gr.Text(label="Seed"),
+                            gr.Text(value="outputs/", label="Outputs path"),
+                            gr.Radio(
+                                ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
+                                value="plms", label="Sampler"),
+                            gr.Slider(1, 120, value=12, step=1, label="Fps"),
+                            gr.Slider(0, 360, value=0, step=1, label="Angle"),
+                            gr.Slider(0, 100, value=0, step=1, label="Zoom"),
+                            gr.Slider(0, 100, value=0, step=1, label="translation_x"),
+                            gr.Slider(0, 100, value=0, step=1, label="translation_y"),
+                            gr.Slider(0, 100, value=0, step=1, label="translation_z"),
+                            gr.Slider(0, 100, value=0, step=1, label="rotation_3d_x"),
+                            gr.Slider(0, 100, value=0, step=1, label="rotation_3d_y"),
+                            gr.Slider(0, 100, value=0, step=1, label="rotation_3d_z"),
+                            gr.Text(value="", label="noise_schedule"),
+                            gr.Slider(0, 1, value=0, step=0.1, label="strength_schedule"),
+                            gr.Slider(0, 1, value=0, step=0.1, label="contrast_schedule"),
+                            gr.Radio(
+                                ["None", 'Match Frame 0 HSV', 'Match Frame 0 LAB', 'Match Frame 0 RGB'],
+                                value="None", label="color_coherence"),
+                            gr.Slider(1, 8, value=1, step=1, label="diffusion_cadence"),
+                            gr.Checkbox(value=True, label="use_depth_warping"),
+                            gr.Slider(0, 1, value=0.3, step=1, label="midas_weight"),
+                            gr.Slider(0, 10000, value=200, step=1, label="near_plane"),
+                            gr.Slider(0, 10000, value=10000, step=1, label="far_plane"),
+                            gr.Slider(0, 180, value=40, step=1, label="fov"),
+                            gr.Radio(
+                                ['border', 'reflection', 'zeros'],
+                                value="border", label="padding mode"),
+                            gr.Radio(
+                                ['bicubic', 'bilinear', 'nearest'],
+                                value="bicubic", label="sampling mode"),
+                            gr.Checkbox(value=False, label="save_depth_maps"),
+                            gr.Text(value="", label="video_init_path"),
+                            gr.Slider(1, 25235, value=1, step=1, label="extract_nth_frame"),
+                            gr.Checkbox(value=True, label="interpolate_key_frames"),
+                            gr.Slider(1, 25235, value=100, step=1, label="interpolate_x_frames"),
+                            gr.Checkbox(value=False, label="resume_from_timestring"),
+                            gr.Text(value="20220829210106", label="resume_timestring"),
+                        ], outputs=[out_image, gen_res])

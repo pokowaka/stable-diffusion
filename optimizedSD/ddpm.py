@@ -5,8 +5,10 @@ https://github.com/openai/improved-diffusion/blob/e94489283bb876ac1477d5dd7709bb
 https://github.com/CompVis/taming-transformers
 -- merci
 """
+import asyncio
 import logging
 import math
+import time
 from functools import partial
 
 import k_diffusion as K
@@ -373,21 +375,23 @@ class KDiffusionSampler:
                                                               disable=False)
 
     def sample(self, x_latent, cond, S, unconditional_guidance_scale=1.0, unconditional_conditioning=None,
-               mask=None, init_latent=None):
+               mask=None, init_latent=None, callback_fn=None):
         sigmas = self.model_wrap.get_sigmas(S)
         model_wrap_cfg = CFGDenoiser(self.model_wrap)
         # x_dec = init_latent if init_latent is not None else x_latent
         # x_dec = init_latent
-        x0 = torch.randn_like(init_latent)
+        x0 = torch.randn_like(init_latent) if init_latent is not None else torch.randn_like(x_latent)
         # if mask is not None:
         #     x0_noisy = x0
         #     x_dec = x0_noisy * mask + (1. - mask) * x_dec
         x_dec = init_latent + x0 * sigmas[0]
         # x_dec = x_dec * sigmas[0]
         samples_ddim = K.sampling.__dict__[f'sample_{self.schedule}'](model_wrap_cfg, x_dec, sigmas,
+                                                                      callback=callback_fn,
                                                                       extra_args={'cond': cond,
                                                                                   'uncond': unconditional_conditioning,
-                                                                                  'cond_scale': unconditional_guidance_scale},
+                                                                                  'cond_scale': unconditional_guidance_scale
+                                                                                  },
                                                                       disable=False)
         # if mask is not None:
         #     return x0 * mask + (1. - mask) * x_dec
@@ -554,7 +558,8 @@ class UNet(DDPM):
                unconditional_guidance_scale=1.,
                unconditional_conditioning=None,
                speed_mp=None,
-               batch_size=None
+               batch_size=None,
+               callback_fn=None
                ):
 
         if self.turbo:
@@ -592,14 +597,17 @@ class UNet(DDPM):
                                          log_every_t=log_every_t,
                                          unconditional_guidance_scale=unconditional_guidance_scale,
                                          unconditional_conditioning=unconditional_conditioning,
-                                         speed_mp=speed_mp
+                                         speed_mp=speed_mp,
+                                         callback_fn=callback_fn
                                          )
 
         elif sampler == "ddim":
             samples = self.ddim_sampling(x_latent, conditioning, S,
                                          unconditional_guidance_scale=unconditional_guidance_scale,
                                          unconditional_conditioning=unconditional_conditioning,
-                                         mask=mask, init_latent=x_T, use_original_steps=False)
+                                         mask=mask, init_latent=x_T, use_original_steps=False,
+                                         callback_fn=callback_fn
+                                         )
         else:
             if sampler == 'k_dpm_2_a':
                 sampler = KDiffusionSampler(self, 'dpm_2_ancestral')
@@ -620,7 +628,7 @@ class UNet(DDPM):
             samples = sampler.sample(x_latent, conditioning, S,
                                      unconditional_guidance_scale=unconditional_guidance_scale,
                                      unconditional_conditioning=unconditional_conditioning,
-                                     mask=mask, init_latent=x_T)
+                                     mask=mask, init_latent=x_T, callback_fn=callback_fn)
 
         # elif sampler == "euler":
         #     cvd = CompVisDenoiser(self.alphas_cumprod)
@@ -648,7 +656,8 @@ class UNet(DDPM):
                       callback=None, quantize_denoised=False,
                       mask=None, x0=None, img_callback=None, log_every_t=100,
                       temperature=1., noise_dropout=0., score_corrector=None, corrector_kwargs=None,
-                      unconditional_guidance_scale=1., unconditional_conditioning=None, speed_mp=None):
+                      unconditional_guidance_scale=1., unconditional_conditioning=None, speed_mp=None,
+                      callback_fn=None):
 
         device = self.betas.device
         timesteps = self.ddim_timesteps
@@ -679,6 +688,8 @@ class UNet(DDPM):
                                       unconditional_conditioning=unconditional_conditioning,
                                       old_eps=old_eps, t_next=ts_next, speed_mp=speed_mp)
             img, pred_x0, e_t = outs
+            if i % 10 == 0 and callback_fn is not None:
+                callback_fn(img)
             old_eps.append(e_t)
             if len(old_eps) >= 4:
                 old_eps.pop(0)
@@ -787,7 +798,7 @@ class UNet(DDPM):
 
     @torch.no_grad()
     def ddim_sampling(self, x_latent, cond, t_start, unconditional_guidance_scale=1.0, unconditional_conditioning=None,
-                      mask=None, init_latent=None, use_original_steps=False):
+                      mask=None, init_latent=None, use_original_steps=False, callback_fn=None):
 
         timesteps = self.ddim_timesteps
         timesteps = timesteps[:t_start]
@@ -810,6 +821,8 @@ class UNet(DDPM):
             x_dec = self.p_sample_ddim(x_dec, cond, ts, index=index, use_original_steps=use_original_steps,
                                        unconditional_guidance_scale=unconditional_guidance_scale,
                                        unconditional_conditioning=unconditional_conditioning)
+            if i % 10 == 0 and callback_fn is not None:
+                callback_fn(x_dec)
 
         if mask is not None:
             return x0 * mask + (1. - mask) * x_dec

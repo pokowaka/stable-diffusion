@@ -4,7 +4,9 @@ import platform
 import sys
 
 import cv2
+import einops
 import git
+from matplotlib import pyplot as plt
 
 if not os.path.exists("CodeFormer/"):
     print("Installing CodeFormer..")
@@ -50,8 +52,6 @@ from basicsr.utils.realesrgan_utils import RealESRGANer
 
 from basicsr.utils.registry import ARCH_REGISTRY
 from torchvision.transforms.functional import normalize
-
-
 
 transformers_logging.set_verbosity_error()
 
@@ -136,6 +136,7 @@ async def get_nvidia_smi():
 def generate_img2img(
         image,
         prompt,
+        negative_prompt,
         strength,
         ddim_steps,
         n_iter,
@@ -228,7 +229,8 @@ def generate_img2img(
                     modelCS.to(device)
                     uc = None
                     if scale != 1.0:
-                        uc = modelCS.get_learned_conditioning(batch_size * [""])
+                        uc = modelCS.get_learned_conditioning(
+                            batch_size * [negative_prompt if negative_prompt is not None else ""])
                     if isinstance(prompts, tuple):
                         prompts = list(prompts)
 
@@ -465,7 +467,8 @@ def generate_img2img_interp(
         # all_samples.append(all_time_samples)
     print("creating a video..")
     all_time_samples = [toImgOpenCV(img) for img in all_time_samples]
-    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 15, (all_time_samples[0].shape[1], all_time_samples[0].shape[0]))
+    out = cv2.VideoWriter("tempfile.mp4", cv2.VideoWriter_fourcc(*'h264'), 15,
+                          (all_time_samples[0].shape[1], all_time_samples[0].shape[0]))
     for img in all_time_samples:
         out.write(img)
     out.release()
@@ -773,6 +776,36 @@ def face_restore(img):
     return img, f"Fixed a face, new img size: {img.size}"
 
 
+def float_tensor_to_pil(tensor: torch.Tensor):
+    """aka torchvision's ToPILImage or DiffusionPipeline.numpy_to_pil
+    (Reproduced here to save a torchvision dependency in this demo.)
+    """
+    tensor = (((tensor + 1) / 2)
+              .clamp(0, 1)  # change scale from -1..1 to 0..1
+              .mul(0xFF)  # to 0..255
+              .byte())
+    tensor = einops.rearrange(tensor, 'c h w -> h w c')
+    return Image.fromarray(tensor.cpu().numpy())
+
+
+def callback_fn(x):
+    if type(x) == dict:
+        if x["i"] % 10 != 0:
+            return
+        x = x["x"]
+    x = x.detach().cpu()[0]
+    x = float_tensor_to_pil(torch.einsum('...lhw,lr -> ...rhw', x, torch.tensor([
+            #   R        G        B
+            [0.298, 0.207, 0.208],  # L1
+            [0.187, 0.286, 0.173],  # L2
+            [-0.158, 0.189, 0.264],  # L3
+            [-0.184, -0.271, -0.473],  # L4
+        ])))
+    plt.imshow(x)
+    plt.show()
+    return x
+
+
 def generate_txt2img(
         prompt,
         negative_prompt,
@@ -840,7 +873,8 @@ def generate_txt2img(
                     modelCS.to(device)
                     uc = None
                     if scale != 1.0:
-                        uc = modelCS.get_learned_conditioning(batch_size * [negative_prompt if negative_prompt is not None else ""])
+                        uc = modelCS.get_learned_conditioning(
+                            batch_size * [negative_prompt if negative_prompt is not None else ""])
                     if isinstance(prompts, tuple):
                         prompts = list(prompts)
 
@@ -875,7 +909,8 @@ def generate_txt2img(
                         eta=ddim_eta,
                         x_T=start_code,
                         sampler=sampler,
-                        speed_mp=speed_mp
+                        speed_mp=speed_mp,
+                        callback_fn=callback_fn
                     )
 
                     modelFS.to(device)
@@ -1102,7 +1137,8 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="plms", label="Sampler"),
-                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False,
+                                            label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image, gen_res])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=[outs3])
@@ -1128,6 +1164,7 @@ if __name__ == '__main__':
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="editor", type="pil", label="Initial image"),
                                 gr.Text(label="Your Prompt"),
+                                gr.Text(label="Your Negative Prompt"),
                                 gr.Slider(0, 1, value=0.75, label="Generated image strength"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
                                 gr.Slider(1, 100, step=1, label="Number of images"),
@@ -1146,7 +1183,8 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False,
+                                            label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image2, gen_res2])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
@@ -1172,6 +1210,7 @@ if __name__ == '__main__':
                             b1.click(generate_img2img, inputs=[
                                 gr.Image(tool="sketch", type="pil", label="Initial image with a mask"),
                                 gr.Text(label="Your Prompt"),
+                                gr.Text(label="Your Negative Prompt"),
                                 gr.Slider(0, 1, value=0.75, label="Generated image strength"),
                                 gr.Slider(1, 200, value=50, label="Sampling Steps"),
                                 gr.Slider(1, 100, step=1, label="Number of images"),
@@ -1190,7 +1229,8 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False,
+                                            label="Lightning Attention (only on linux + xformers installed)"),
                             ], outputs=[out_image3, gen_res3])
                             b2.click(get_logs, inputs=[], outputs=outs2)
                             b3.click(get_nvidia_smi, inputs=[], outputs=outs3)
@@ -1230,7 +1270,8 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="ddim", label="Sampler"),
-                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False,
+                                            label="Lightning Attention (only on linux + xformers installed)"),
                                 gr.Slider(1, 120, value=60, step=1, label="How smooth/slow the video will be"),
                             ], outputs=[out_video, gen_res4])
                             b2.click(get_logs, inputs=[], outputs=outs2)
@@ -1273,7 +1314,8 @@ if __name__ == '__main__':
                                 gr.Radio(
                                     ["ddim", "plms", "k_dpm_2_a", "k_dpm_2", "k_euler_a", "k_euler", "k_heun", "k_lms"],
                                     value="plms", label="Sampler"),
-                                gr.Checkbox(value=False, label="Lightning Attention (only on linux + xformers installed)"),
+                                gr.Checkbox(value=False,
+                                            label="Lightning Attention (only on linux + xformers installed)"),
                                 gr.Slider(2, 3, value=2, step=1,
                                           label="Neural scaling factor, 3 will take much longer"),
                             ], outputs=[out_image, gen_res])

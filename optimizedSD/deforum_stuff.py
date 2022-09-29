@@ -1327,3 +1327,4 @@ with demo:
                             gr.Checkbox(value=False, label="resume_from_timestring"),
                             gr.Text(value="20220829210106", label="resume_timestring"),
                         ], outputs=[out_image, gen_res])
+demo.launch()

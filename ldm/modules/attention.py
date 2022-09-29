@@ -277,7 +277,7 @@ class CrossAttention(nn.Module):
             s1 *= self.scale
             s1 = F.softmax(s1, dim=-1)
             r1[:, i:i + mp] = einsum('b i j, b j d -> b i d', s1, v).to(secondary_device, non_blocking=True)
-        r1 = rearrange(r1, '(b h) n d -> b n (h d)', h=h).to(device, non_blocking=True)
+        r1 = rearrange(r1, '(b h) n d -> b n (h d)', h=h).to(dtype).to(device, non_blocking=True)
         return self.to_out(r1)
 
 

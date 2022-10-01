@@ -384,7 +384,10 @@ class KDiffusionSampler:
         # if mask is not None:
         #     x0_noisy = x0
         #     x_dec = x0_noisy * mask + (1. - mask) * x_dec
-        x_dec = init_latent + x0 * sigmas[0]
+        if x_latent is not None:
+            x_dec = x_latent + x0 * sigmas[0]
+        else:
+            x_dec = x0 * sigmas[0]
         # x_dec = x_dec * sigmas[0]
         samples_ddim = K.sampling.__dict__[f'sample_{self.schedule}'](model_wrap_cfg, x_dec, sigmas,
                                                                       callback=callback_fn,
@@ -669,7 +672,10 @@ class UNet(DDPM):
         old_eps = []
 
         for i, step in enumerate(iterator):
-            iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
+            try:
+                iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
+            except:
+                pass
             index = total_steps - i - 1
             ts = torch.full((b,), step, device=device, dtype=torch.long)
             ts_next = torch.full((b,), time_range[min(i + 1, len(time_range) - 1)], device=device, dtype=torch.long)
@@ -810,7 +816,10 @@ class UNet(DDPM):
         x_dec = x_latent
         for i, step in enumerate(iterator):
             x0 = init_latent if init_latent is not None else torch.randn_like(x_dec)
-            iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
+            try:
+                iterator.write(file=open("tqdm.txt", "w", encoding="utf-8"), s=str(iterator))
+            except:
+                pass
             index = total_steps - i - 1
             ts = torch.full((x_latent.shape[0],), step, device=x_latent.device, dtype=torch.long)
             if mask is not None:

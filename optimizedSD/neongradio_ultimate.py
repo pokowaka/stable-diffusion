@@ -258,17 +258,32 @@ def generate_img2img(
                         init_latent, torch.tensor([t_enc] * batch_size).to(device), seed, ddim_eta, ddim_steps
                     )
                     # decode it
+                    # samples_ddim = model.sample(
+                    #     t_enc,
+                    #     c,
+                    #     z_enc,
+                    #     unconditional_guidance_scale=scale,
+                    #     unconditional_conditioning=uc,
+                    #     sampler=sampler,
+                    #     speed_mp=speed_mp,
+                    #     batch_size=batch_size,
+                    #     x_T=init_latent,
+                    #     mask=mask if use_mask else None
+                    # )
                     samples_ddim = model.sample(
-                        t_enc,
-                        c,
-                        z_enc,
+                        x0=(z_enc if sampler == "ddim" else init_latent),
+                        batch_size=batch_size,
+                        S=t_enc,
+                        conditioning=c,
+                        seed=seed,
+                        verbose=False,
                         unconditional_guidance_scale=scale,
                         unconditional_conditioning=uc,
+                        eta=ddim_eta,
                         sampler=sampler,
                         speed_mp=speed_mp,
-                        batch_size=batch_size,
-                        x_T=init_latent,
-                        mask=mask if use_mask else None
+                        mask=mask if use_mask else None,
+                        callback_fn=callback_fn
                     )
 
                     modelFS.to(device)
@@ -801,8 +816,8 @@ def callback_fn(x):
             [-0.158, 0.189, 0.264],  # L3
             [-0.184, -0.271, -0.473],  # L4
         ])))
-    plt.imshow(x)
-    plt.show()
+    # plt.imshow(x)
+    # plt.show()
     return x
 
 

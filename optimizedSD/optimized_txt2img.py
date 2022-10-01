@@ -61,10 +61,9 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
         start_code = torch.randn([opt.num_images, opt.C, opt.height // opt.f, opt.width // opt.f], device=opt.device)
 
     use_init_img = False
-    try:  # Only for peacasso support
-        init_image = load_img(opt.init_image, opt.height, opt.width)
+    try:
+        init_image = load_img(opt.init_image, opt.height, opt.width).half().to(opt.device)
         use_init_img = True
-        init_image = init_image.cpu().to(torch.float32)
     except:
         pass
     try:
@@ -92,23 +91,21 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
         precision_scope = nullcontext
 
     if use_init_img:
-        modelFS.cpu().to(torch.float32)
-        m = model.device
-        model.cpu().to(torch.float32)
-        model.cdevice = torch.device("cpu")
+        modelFS.to(opt.device)
         init_image = repeat(init_image, "1 ... -> b ...", b=batch_size)
         init_latent = modelFS.get_first_stage_encoding(modelFS.encode_first_stage(init_image))
-        modelFS.half()
-        model.cpu()
         z_enc = model.stochastic_encode(
             init_latent,
-            torch.tensor([22] * batch_size),
+            torch.tensor([int(opt.ddim_steps * opt.img2img_strength)] * batch_size, device=opt.device),
             opt.seed,
             opt.ddim_eta,
             opt.ddim_steps,
-        ).half().to(m)
-        model.half().to(m)
-        model.cdevice = m
+        ).to(opt.device)
+        if opt.device != "cpu":
+            mem = torch.cuda.memory_allocated() / 1e6
+            modelFS.to("cpu")
+            while torch.cuda.memory_allocated() / 1e6 >= mem:
+                time.sleep(1)
 
     seeds = ""
     try:
@@ -153,31 +150,22 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
                         modelCS.to("cpu")
                         while torch.cuda.memory_allocated() / 1e6 >= mem:
                             time.sleep(1)
-                    if use_init_img:
-                        samples_ddim = model.sample(
-                            int(23),
-                            c,
-                            z_enc,
-                            unconditional_guidance_scale=opt.scale,
-                            unconditional_conditioning=uc,
-                            sampler="ddim",
-                            callback_fn=callback_fn
-                        )
-                    else:
-                        samples_ddim = model.sample(
-                            S=opt.ddim_steps,
-                            conditioning=c,
-                            seed=opt.seed,
-                            shape=shape,
-                            verbose=False,
-                            unconditional_guidance_scale=opt.scale,
-                            unconditional_conditioning=uc,
-                            eta=opt.ddim_eta,
-                            x_T=start_code,
-                            sampler=opt.sampler,
-                            speed_mp=speed_mp,
-                            callback_fn=callback_fn
-                        )
+                    samples_ddim = model.sample(
+                        x0=(z_enc if opt.sampler == "ddim" else init_latent) if use_init_img else None,
+                        batch_size=batch_size,
+                        S=opt.ddim_steps,
+                        conditioning=c,
+                        seed=opt.seed,
+                        shape=shape,
+                        verbose=False,
+                        unconditional_guidance_scale=opt.scale,
+                        unconditional_conditioning=uc,
+                        eta=opt.ddim_eta,
+                        x_T=start_code,
+                        sampler=opt.sampler,
+                        speed_mp=speed_mp,
+                        callback_fn=callback_fn
+                    )
                     modelFS.to(opt.device)
 
                     print(samples_ddim.shape)

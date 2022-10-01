@@ -188,10 +188,7 @@ def fused_t(x, c):
     return x * (int(c) ** (-0.5))
 
 
-def fused_memory_opt(mem_reserved, mem_active, mem_free_cuda, b, h, w, c):
-    mem_free_torch = mem_reserved - mem_active
-    mem_free_total = mem_free_cuda + mem_free_torch
-
+def fused_memory_opt(mem_free_total, b, h, w, c):
     # s1 = (b * h * w * 2 * h * w) * 2  # 2 bmms
     # s2 = (b * ((h * w) ** 2) * 2) * 2  # 2 softmaxes
     # s3 = (b * c * h * w * 3) * 2  # zeros_like, empty_like, empty_strided
@@ -252,9 +249,13 @@ class AttnBlock(nn.Module):
         stats = torch.cuda.memory_stats(dev)
         mem_active = stats['active_bytes.all.current']
         mem_reserved = stats['reserved_bytes.all.current']
-        mem_free_cuda, _ = torch.cuda.mem_get_info(dev)
+        mem_free_cuda, _ = torch.cuda.mem_get_info(torch.cuda.current_device())
+        mem_free_torch = mem_reserved - mem_active
+        mem_free_total = (mem_free_cuda + mem_free_torch)
+        mem_free_total = math.ceil(mem_free_total / 10 ** int(math.log10(mem_free_total) - 1)) * (
+                10 ** int(math.log10(mem_free_total) - 1))
 
-        mp = q.shape[1] // fused_memory_opt(mem_reserved, mem_active, mem_free_cuda, b, h, w, c)
+        mp = q.shape[1] // fused_memory_opt(mem_free_total, b, h, w, c)
 
         for i in range(0, q.shape[1], mp):
             w1 = torch.bmm(q[:, i:i + mp], k)  # b,hw,hw    w[b,i,j]=sum_c q[b,i,c]k[b,c,j]

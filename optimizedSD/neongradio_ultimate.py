@@ -1042,14 +1042,6 @@ if __name__ == '__main__':
         format='[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s',
         handlers=handlers
     )
-
-    if platform.system() != "Windows" and not os.path.exists("fast-stable-diffusion/"):
-        print("Installing FlashAttention..")
-        git.Repo.clone_from("https://github.com/TheLastBen/fast-stable-diffusion/", "fast-stable-diffusion")
-        print("Fetched flashattention files")
-    sys.path.append('fast-stable-diffusion/')
-    sys.path.append('fast-stable-diffusion/precompiled/')
-
     parser = argparse.ArgumentParser(description='SD by neonsecret using gradio')
     parser.add_argument('--config_path', default="optimizedSD/v1-inference.yaml", type=str, help='config path')
     parser.add_argument('--ckpt_path', default="models/ldm/stable-diffusion-v1/model.ckpt", type=str, help='ckpt path')

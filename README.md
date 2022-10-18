@@ -20,7 +20,7 @@ See [GUI our new 1-click windows app](https://artroom.ai/download-app)
 
 ## The gradio UI now has every feature on one page. See usage below.
 
-## The flash attention Windows support has arrived! To try it out, `pip install xformers` (on linux) or `pip install https://github.com/neonsecret/xformers/releases/download/v0.14/xformers-0.0.14.dev0-cp39-cp39-win_amd64.whl` (on windows)
+## The flash attention Windows support has arrived! To try it out, `pip install xformers` (on linux) or `pip install https://github.com/neonsecret/xformers/releases/download/v0.14/xformers-0.0.14.dev0-cp39-cp39-win_amd64.whl` (on windows, python 3.9)
 
 # The project is completely open-source and free, and is only maintained by me. If you want to support me, I have a [ko-fi](https://ko-fi.com/neonsecret)
 

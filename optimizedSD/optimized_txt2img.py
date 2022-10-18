@@ -102,9 +102,9 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
             opt.ddim_steps,
         ).to(opt.device)
         if opt.device != "cpu":
-            mem = torch.cuda.memory_allocated() / 1e6
+            mem = torch.cuda.memory_allocated(device=opt.device) / 1e6
             modelFS.to("cpu")
-            while torch.cuda.memory_allocated() / 1e6 >= mem:
+            while torch.cuda.memory_allocated(device=opt.device) / 1e6 >= mem:
                 time.sleep(1)
 
     seeds = ""
@@ -146,9 +146,9 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
                     shape = [opt.num_images, opt.C, opt.height // opt.f, opt.width // opt.f]
 
                     if opt.device != "cpu":
-                        mem = torch.cuda.memory_allocated() / 1e6
+                        mem = torch.cuda.memory_allocated(device=opt.device) / 1e6
                         modelCS.to("cpu")
-                        while torch.cuda.memory_allocated() / 1e6 >= mem:
+                        while torch.cuda.memory_allocated(device=opt.device) / 1e6 >= mem:
                             time.sleep(1)
                     samples_ddim = model.sample(
                         x0=(z_enc if opt.sampler == "ddim" else init_latent) if use_init_img else None,
@@ -175,16 +175,15 @@ def get_image(opt, model, modelCS, modelFS, prompt=None, save=True, callback_fn=
                         x_sample = torch.clamp((x_samples_ddim + 1.0) / 2.0, min=0.0, max=1.0)
                         all_samples.append(x_sample.to("cpu"))
                         seeds += str(opt.seed) + ","
-                        opt.seed += 1
                         base_count += 1
 
                     if opt.device != "cpu":
-                        mem = torch.cuda.memory_allocated() / 1e6
+                        mem = torch.cuda.memory_allocated(device=opt.device) / 1e6
                         modelFS.to("cpu")
-                        while torch.cuda.memory_allocated() / 1e6 >= mem:
+                        while torch.cuda.memory_allocated(device=opt.device) / 1e6 >= mem:
                             time.sleep(1)
                     del samples_ddim
-                    print("memory_final = ", torch.cuda.memory_allocated() / 1e6)
+                    print("memory_final = ", torch.cuda.memory_allocated(device=opt.device) / 1e6)
 
     toc = time.time()
 
